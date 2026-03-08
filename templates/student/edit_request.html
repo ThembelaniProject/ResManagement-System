@@ -1,0 +1,50 @@
+<!-- templates/student/edit_request.html -->
+{% extends "base.html" %}   <!-- assuming you have a base template -->
+
+{% block title %}Edit Maintenance Request #{{ request.id }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Edit Maintenance Request #{{ request.id }}</h2>
+    
+    <div class="card">
+        <div class="card-body">
+            <form method="POST">
+                <div class="mb-3">
+                    <label for="room_number" class="form-label">Room / Location</label>
+                    <input type="text" class="form-control" id="room_number" name="room_number"
+                           value="{{ request.room_number }}" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="category" class="form-label">Category</label>
+                    <select class="form-select" id="category" name="category" required>
+                        <option value="Plumbing"   {% if request.category == "Plumbing"   %}selected{% endif %}>Plumbing</option>
+                        <option value="Electrical" {% if request.category == "Electrical" %}selected{% endif %}>Electrical</option>
+                        <option value="Furniture"  {% if request.category == "Furniture"  %}selected{% endif %}>Furniture</option>
+                        <option value="Cleaning"   {% if request.category == "Cleaning"   %}selected{% endif %}>Cleaning</option>
+                        <option value="Other"      {% if request.category == "Other"      %}selected{% endif %}>Other</option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label for="priority" class="form-label">Priority</label>
+                    <select class="form-select" id="priority" name="priority" required>
+                        <option value="Normal"    {% if request.priority == "Normal"    %}selected{% endif %}>Normal</option>
+                        <option value="Urgent"    {% if request.priority == "Urgent"    %}selected{% endif %}>Urgent</option>
+                        <option value="Emergency" {% if request.priority == "Emergency" %}selected{% endif %}>Emergency</option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label for="description" class="form-label">Description</label>
+                    <textarea class="form-control" id="description" name="description" rows="5" required>{{ request.description }}</textarea>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Update Request</button>
+                <a href="{{ url_for('my_requests') }}" class="btn btn-secondary">Cancel</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

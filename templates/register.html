@@ -1,0 +1,181 @@
+{% block title %}Create New User - Admin Panel{% endblock %}
+<link rel="stylesheet" href="{{ url_for('static', filename='RegStyle.css') }}">
+{% block content %}
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-xl-5 col-lg-6 col-md-8">
+
+            <div class="card border-0 shadow-lg overflow-hidden rounded-4 animate__animated animate__fadeInUp">
+                <!-- Header -->
+                <div class="card-header bg-gradient-primary text-white border-0 py-4 position-relative">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <h4 class="mb-1 fw-bold">Create New Account</h4>
+                            <p class="mb-0 opacity-75 small">Add a new team member or student</p>
+                        </div>
+                        <i class="bi bi-person-plus-fill fs-1 opacity-50"></i>
+                    </div>
+
+                    <!-- Subtle overlay pattern -->
+                    <div class="header-overlay"></div>
+                </div>
+
+                <div class="card-body p-4 p-md-5">
+
+                    <!-- Flash Messages -->
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ category }} alert-dismissible fade show d-flex align-items-center" role="alert">
+                                    <i class="bi bi-info-circle me-2"></i>
+                                    {{ message }}
+                                    <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert" aria-label="Close"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+
+                    <form method="POST" class="needs-validation" novalidate>
+                        <!-- Full Name -->
+                        <div class="mb-4">
+                            <label for="full_name" class="form-label fw-semibold text-dark">
+                                <i class="bi bi-person me-2 text-primary"></i>Full Name
+                            </label>
+                            <div class="input-group input-group-lg">
+                                <span class="input-group-text bg-light border-end-0">
+                                    <i class="bi bi-person"></i>
+                                </span>
+                                <input type="text"
+                                       class="form-control border-start-0"
+                                       id="full_name"
+                                       name="full_name"
+                                       placeholder="Johnathan Doe"
+                                       required
+                                       autofocus>
+                                <div class="invalid-feedback">
+                                    Please enter the full name
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Email -->
+                        <div class="mb-4">
+                            <label for="email" class="form-label fw-semibold text-dark">
+                                <i class="bi bi-envelope me-2 text-primary"></i>Email Address
+                            </label>
+                            <div class="input-group input-group-lg">
+                                <span class="input-group-text bg-light border-end-0">
+                                    <i class="bi bi-envelope"></i>
+                                </span>
+                                <input type="email"
+                                       class="form-control border-start-0"
+                                       id="email"
+                                       name="email"
+                                       placeholder="john.doe@example.com"
+                                       required>
+                                <div class="invalid-feedback">
+                                    Please enter a valid email address
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Password -->
+                        <div class="mb-4">
+                            <label for="password" class="form-label fw-semibold text-dark">
+                                <i class="bi bi-lock me-2 text-primary"></i>Password
+                            </label>
+                            <div class="input-group input-group-lg">
+                                <span class="input-group-text bg-light border-end-0">
+                                    <i class="bi bi-lock"></i>
+                                </span>
+                                <input type="password"
+                                       class="form-control border-start-0"
+                                       id="password"
+                                       name="password"
+                                       placeholder="••••••••••••"
+                                       required
+                                       minlength="8">
+                                <div class="invalid-feedback">
+                                    Minimum 8 characters required
+                                </div>
+                            </div>
+                            <div class="form-text text-muted mt-2 small">
+                                Use at least 8 characters with a mix of letters, numbers & symbols
+                            </div>
+                        </div>
+
+                        <!-- Role -->
+                        <div class="mb-5">
+                            <label for="role" class="form-label fw-semibold text-dark">
+                                <i class="bi bi-shield-lock me-2 text-primary"></i>User Role
+                            </label>
+                            <select class="form-select form-select-lg"
+                                    id="role"
+                                    name="role"
+                                    required>
+                                <option value="" disabled selected>Select role...</option>
+                                <option value="admin">Administrator</option>
+                                <option value="technician">Technician / Support</option>
+                                <option value="student">Student / Trainee</option>
+                                <!-- You can add more: <option value="manager">Manager</option> etc. -->
+                            </select>
+                            <div class="invalid-feedback">
+                                Please select a role
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="d-grid gap-3 d-md-flex justify-content-md-end">
+                            <a href="{{ url_for('dashboard') }}"
+                               class="btn btn-outline-secondary btn-lg px-5">
+                                <i class="bi bi-x-circle me-2"></i>Cancel
+                            </a>
+                            <button type="submit"
+                                    class="btn btn-primary btn-lg px-5 shadow-sm">
+                                <i class="bi bi-person-plus me-2"></i>Create User
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="card-footer bg-light border-0 text-center py-4 text-muted small">
+                    <i class="bi bi-info-circle me-1"></i>
+                    New accounts are active immediately — no email verification required
+                </div>
+            </div>
+
+            <!-- Optional subtle branding / version info -->
+            
+
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_styles %}
+<style>
+   
+</style>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Bootstrap 5 form validation
+(function () {
+    'use strict'
+    const forms = document.querySelectorAll('.needs-validation')
+
+    Array.from(forms).forEach(form => {
+        form.addEventListener('submit', event => {
+            if (!form.checkValidity()) {
+                event.preventDefault()
+                event.stopPropagation()
+            }
+            form.classList.add('was-validated')
+        }, false)
+    })
+})()
+</script>
+{% endblock %}
