@@ -367,14 +367,21 @@ def notify_user_email(user, subject, html_template, **template_vars):
 def load_user(user_id):
     return User.query.get(int(user_id))
 
+
 @app.route("/", methods=["GET","POST"])
 def login():
     if request.method == "POST":
-        user = User.query.filter_by(email=request.form["email"]).first()
-        if user and check_password_hash(user.password_hash, request.form["password"]):
+        email = request.form["email"]
+        password = request.form["password"]
+
+        user = User.query.filter_by(email=email).first()
+
+        if user and check_password_hash(user.password_hash, password):
             login_user(user)
             return redirect(url_for("dashboard"))
-        flash("Invalid credentials")
+        else:
+            flash("Email or password is incorrect.", "danger")
+
     return render_template("login.html")
 
 @app.route("/logout")
@@ -735,16 +742,24 @@ def my_requests():
         flash("Unauthorized access.", "danger")
         return redirect(url_for("dashboard"))
 
-    requests = Request.query.filter_by(user_id=current_user.id)\
-                           .order_by(Request.created_at.desc()).all()
-    
+    page = request.args.get('page', 1, type=int)  # Get current page from query parameter
+    per_page = 10  # Number of requests per page
+
+    # Paginate query
+    pagination = Request.query.filter_by(user_id=current_user.id)\
+                              .order_by(Request.created_at.desc())\
+                              .paginate(page=page, per_page=per_page)
+
+    requests = pagination.items  # Only requests for the current page
+
     # Add staff names to requests
     for req in requests:
         if req.staff_id:
             staff = User.query.get(req.staff_id)
             req.staff_name = staff.full_name if staff else "Unknown"
-    
-    return render_template('student/my_requests.html', requests=requests)
+
+    return render_template('student/my_requests.html', requests=requests, pagination=pagination)
+
 
 # ================= ADMIN REQUESTS VIEW =================
 
@@ -752,7 +767,13 @@ def my_requests():
 @login_required
 @admin_required
 def requests():
-    requests = Request.query.order_by(Request.created_at.desc()).all()
+    page = request.args.get('page', 1, type=int)
+
+    requests = Request.query.order_by(Request.created_at.desc()).paginate(
+        page=page,
+        per_page=10,
+        error_out=False
+    )
     
     # Get all staff members by category
     staff_by_category = {}
@@ -783,7 +804,15 @@ def requests():
 @login_required
 @admin_required
 def users():
-    users = User.query.order_by(User.created_at.desc()).all()
+
+    page = request.args.get('page', 1, type=int)
+
+    users = User.query.order_by(User.created_at.desc()).paginate(
+        page=page,
+        per_page=10,
+        error_out=False
+    )
+
     return render_template("admin/users.html", users=users)
 
 @app.route('/users/<int:user_id>/edit', methods=['GET', 'POST'])
