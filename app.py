@@ -1,21 +1,19 @@
-from flask import Flask, render_template, redirect, url_for, request, flash
+from flask import Flask, render_template, redirect, url_for, request, flash ,jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user, UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_mail import Mail, Message
 from datetime import datetime
 from flask_wtf import FlaskForm
-from flask_wtf.file import FileField, FileAllowed, FileRequired
-from wtforms import StringField, PasswordField, SelectField, SubmitField, TextAreaField
-from wtforms.validators import DataRequired, Email, Length, EqualTo, Optional
+from wtforms import StringField, PasswordField, SelectField, SubmitField 
+from wtforms.validators import DataRequired, Email, Length, EqualTo
 from werkzeug.security import generate_password_hash
 from functools import wraps
-import os
-from werkzeug.utils import secure_filename
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.interval import IntervalTrigger
+from datetime import datetime, timedelta
+import atexit
 
-# Configure upload folder
-UPLOAD_FOLDER = 'static/uploads'
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
 class AddUserForm(FlaskForm):
     full_name = StringField(
@@ -46,6 +44,13 @@ class AddUserForm(FlaskForm):
 
 app = Flask(__name__)
 
+scheduler = BackgroundScheduler()
+scheduler.start()
+
+# Make sure scheduler shuts down cleanly
+atexit.register(lambda: scheduler.shutdown())
+
+
 app.config['SECRET_KEY'] = 'secretkey'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///maintenance.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -56,11 +61,8 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = 'your_email@gmail.com'
-app.config['MAIL_PASSWORD'] = 'your_app_password'
-
-# Create upload folder if it doesn't exist
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+app.config['MAIL_USERNAME'] = 'thembelanibuthelezi64@gmail.com'
+app.config['MAIL_PASSWORD'] = 'iuuocjnhsocusnrz'
 
 db = SQLAlchemy(app)
 mail = Mail(app)
@@ -68,8 +70,51 @@ mail = Mail(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
-# ================= MODELS =================
 
+# =================Notification Icon =================
+
+@app.context_processor
+def inject_notifications():
+    if not current_user.is_authenticated:
+        return {
+            'unread_count': 0,
+            'has_unread': False
+        }
+    
+    unread_count = current_user.unread_notifications_count()
+    return {
+        'unread_count': unread_count,
+        'has_unread': unread_count > 0
+    }
+    
+@app.route('/notifications/mark-read/<int:notif_id>', methods=['POST'])
+@login_required
+def mark_read(notif_id):
+    notif = Notification.query.get_or_404(notif_id)
+    if notif.user_id != current_user.id:
+        return jsonify({'success': False}), 403
+    if not notif.is_read:
+        notif.is_read = True
+        db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/notifications/unread-count')
+@login_required
+def unread_count():
+    return jsonify({
+        'unread': current_user.unread_notifications_count()
+    })
+
+
+# Optional – full list page (for "View all")
+@app.route('/notifications')
+@login_required
+def notifications_all():
+    notifs = current_user.notifications.order_by(Notification.created_at.desc()).all()
+    return render_template('notifications_all.html', notifications=notifs)
+    
+# ================= MODELS =================
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     full_name = db.Column(db.String(100))
@@ -78,6 +123,13 @@ class User(UserMixin, db.Model):
     role = db.Column(db.String(20))  # admin, student, plumber, cleaner, electrician, technician, pest_controller
     room_number = db.Column(db.String(20), nullable=True)  # Only for students
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def unread_notifications_count(self):
+        return self.notifications.filter_by(is_read=False).count()
+
+    def get_notifications(self, limit=12):
+        return self.notifications.order_by(Notification.created_at.desc()).limit(limit).all()
+
 
 class Request(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -94,9 +146,84 @@ class Request(db.Model):
 
     def __repr__(self):
         return f"<Request {self.id} - {self.room_number}>"
+    
+    
+class Notification(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    message = db.Column(db.String(255), nullable=False)
+    
+    # ─── New fields ───────────────────────────────────────
+    type = db.Column(db.String(30), default='request', nullable=False)   # 'request', 'reminder', 'system', etc.
+    related_request_id = db.Column(db.Integer, db.ForeignKey('request.id'), nullable=True)
+    related_object_id  = db.Column(db.Integer, nullable=True)            # generic — can point to reminder ID, etc.
+    # ──────────────────────────────────────────────────────
+    
+    is_read = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    user = db.relationship('User', backref=db.backref('notifications', lazy='dynamic', cascade="all, delete-orphan"))
+    request = db.relationship('Request', backref='notifications', lazy=True)
+
+    def __repr__(self):
+        return f"<Notif {self.id} {self.type} for user {self.user_id}>"
+
+def check_and_create_reminder_notifications():
+    with app.app_context():   # very important!
+        # Example logic — adjust to your real needs
+        # e.g. requests that are Pending for > 48 hours
+        overdue = Request.query.filter(
+            Request.status == "Pending",
+            Request.created_at <= datetime.utcnow() - timedelta(hours=48)
+        ).all()
+
+        for req in overdue:
+            student = User.query.get(req.user_id)
+            if not student:
+                continue
+
+            # Check if we already sent a reminder recently (avoid spam)
+            recent_reminder = Notification.query.filter(
+                Notification.user_id == student.id,
+                Notification.type == 'reminder',
+                Notification.related_request_id == req.id,
+                Notification.created_at >= datetime.utcnow() - timedelta(hours=24)
+            ).first()
+
+            if recent_reminder:
+                continue
+
+            message = f"Reminder: Your maintenance request #{req.id} (Room {req.room_number}) is still pending for over 2 days."
+
+            notif = Notification(
+                user_id=student.id,
+                message=message,
+                type='reminder',
+                related_request_id=req.id
+            )
+            db.session.add(notif)
+            db.session.commit()
+
+            # Optional: also send email
+            # send_email(student.email, "Maintenance Reminder", message)
+
+# Schedule it — every 15 minutes
+scheduler.add_job(
+    func=check_and_create_reminder_notifications,
+    trigger=IntervalTrigger(minutes=1),
+    id='maintenance_reminders',
+    name='Check for overdue requests and create reminders',
+    replace_existing=True
+)  
+
+@app.route('/notifications/mark-read', methods=['POST'])
+@login_required
+def mark_notifications_read():
+    # Mark all as read, or specific ones
+    for notif in current_user.notifications.filter_by(is_read=False).all():
+        notif.is_read = True
+    db.session.commit()
+    return '', 204  # no content - for AJAX
 
 def admin_required(f):
     @wraps(f)
@@ -132,7 +259,78 @@ def format_datetime(value, format='%Y-%m-%d %H:%M'):
     if value is None:
         value = datetime.now()
     return value.strftime(format)
+# ================= HELPER FUNCTIONS FOR EMAIL NOTIFICATIONS =================
 
+def get_admin_emails():
+    """Return list of emails of all admin users (case-insensitive)"""
+    admins = User.query.filter(User.role.ilike('%admin%')).all()
+    return [admin.email for admin in admins if admin.email]
+
+
+def notify_admins_new_request(new_request):
+    admin_emails = get_admin_emails()
+    if not admin_emails:
+        return
+
+    student = current_user
+
+    subject = f"New Maintenance Request #{new_request.id} — Room {new_request.room_number}"
+
+    html_content = render_template(
+        'emails/new_request_notification.html',   # save the code above as this file
+        request_id      = new_request.id,
+        submitted_by_name  = student.full_name,
+        submitted_by_email = student.email,
+        room_number     = new_request.room_number,
+        category        = new_request.category,
+        priority        = new_request.priority,
+        description     = new_request.description,
+        status          = new_request.status,
+        created_at      = new_request.created_at.strftime('%Y-%m-%d %H:%M UTC'),
+        review_url      = "http://127.0.0.1:5000/requests"   # ← change in production
+    )
+
+    try:
+        msg = Message(
+            subject=subject,
+            sender=app.config['MAIL_USERNAME'],
+            recipients=admin_emails,
+            body="Plain text fallback version here...",   # optional but recommended
+            html=html_content
+        )
+        mail.send(msg)
+        print(f"→ HTML admin notification sent for request #{new_request.id}")
+    except Exception as e:
+        print(f"→ Failed to send admin notification: {e}")
+
+
+def create_notification(user_id, message, notif_type='request', related_request_id=None):
+    """Create an in-app notification for a user"""
+    notif = Notification(
+        user_id=user_id,
+        message=message,
+        type=notif_type,
+        related_request_id=related_request_id
+    )
+    db.session.add(notif)
+    # We commit later (in the route) to allow batching
+
+
+def notify_user_email(user, subject, html_template, **template_vars):
+    """Send nicely formatted email to one user"""
+    try:
+        html_content = render_template(html_template, **template_vars)
+        msg = Message(
+            subject=subject,
+            sender=app.config['MAIL_USERNAME'],
+            recipients=[user.email],
+            body="This is an automated maintenance system update.",
+            html=html_content
+        )
+        mail.send(msg)
+        print(f"→ Email sent to {user.email} — {subject}")
+    except Exception as e:
+        print(f"→ Email failed for {user.email}: {e}")
 # ================= LOGIN =================
 
 @login_manager.user_loader
@@ -213,7 +411,9 @@ def dashboard():
         pending_requests = Request.query.filter_by(status="Pending").count()
         in_progress = Request.query.filter_by(status="In Progress").count()
         completed = Request.query.filter_by(status="Completed").count()
-        
+                # Pass notifications explicitly
+        notifications = current_user.get_notifications(limit=12)
+
         recent_requests = Request.query.order_by(Request.created_at.desc()).limit(10).all()
         
         # Get counts by category
@@ -240,6 +440,18 @@ def dashboard():
         
         return render_template("student/dashboard.html",
                                requests=requests,
+                               total=total,
+                               pending=pending,
+                               completed=completed,notifications=notifications,           # ← add this
+            unread_count=current_user.unread_notifications_count())
+
+    elif current_user.role == "Student":
+        requests = Request.query.filter_by(user_id=current_user.id).all()
+        return render_template("student_dashboard.html",
+                               requests=requests)
+    elif current_user.role == "Technician":
+        requests = Request.query.filter_by(technician_id=current_user.id)\
+                                .order_by(Request.created_at.desc()).all()
                                pending_count=pending_count,
                                in_progress_count=in_progress_count,
                                completed_count=completed_count,
@@ -258,9 +470,142 @@ def dashboard():
                                requests=requests,
                                pending_count=pending_count,
                                in_progress_count=in_progress_count,
-                               completed_count=completed_count,
-                               role_display=current_user.role.replace('_', ' ').title(),
-                               current_user=current_user)
+                               completed_count=completed_count)
+
+    else:
+        flash("Unknown role", "danger")
+        return redirect(url_for("login"))
+
+
+
+
+# ================= ASSIGN TECHNICIAN =================
+
+
+
+@app.route("/assign/<int:req_id>", methods=["POST"])
+@login_required
+@admin_required
+def assign(req_id):
+    req = Request.query.get_or_404(req_id)
+
+    if req.status == "Completed":
+        flash("Cannot assign technician to already completed request.", "warning")
+        return redirect(url_for("requests"))
+
+    try:
+        technician_id = int(request.form["technician_id"])
+    except (KeyError, ValueError):
+        flash("No technician selected.", "danger")
+        return redirect(url_for("requests"))
+
+    technician = User.query.get(technician_id)
+    if not technician or technician.role.lower() != "technician":
+        flash("Invalid technician selected.", "danger")
+        return redirect(url_for("requests"))
+
+    # ─── Update request ───────────────────────────────────────
+    old_technician_id = req.technician_id   # for re-assignment detection
+
+    req.technician_id = technician.id
+    req.status = "Assigned"
+    
+    # ─── Create notifications ─────────────────────────────────
+    student = User.query.get(req.user_id)
+    if not student:
+        print(f"Warning: Student user {req.user_id} not found for request #{req.id}")
+
+    # Message to student
+    student_msg = (
+        f"Your maintenance request #{req.id} (Room {req.room_number}) "
+        f"has been assigned to technician {technician.full_name}."
+    )
+    create_notification(
+        user_id=req.user_id,
+        message=student_msg,
+        notif_type='assignment',
+        related_request_id=req.id
+    )
+
+    # Message to technician
+    tech_msg = (
+        f"You have been assigned to maintenance request #{req.id} "
+        f"(Room {req.room_number} – {req.category}). "
+        f"Priority: {req.priority}. Please review."
+    )
+    create_notification(
+        user_id=technician.id,
+        message=tech_msg,
+        notif_type='assignment',
+        related_request_id=req.id
+    )
+
+    # ─── Commit all changes + notifications ───────────────────
+    db.session.commit()
+
+    # ─── Optional: send emails ────────────────────────────────
+    if student:
+        notify_user_email(
+            user=student,
+            subject=f"Request #{req.id} Assigned – {req.room_number}",
+            html_template='emails/request_assigned_student.html',
+            request_id=req.id,
+            room_number=req.room_number,
+            technician_name=technician.full_name,
+            category=req.category,
+            priority=req.priority,
+            description=req.description,
+            status=req.status
+        )
+
+    notify_user_email(
+        user=technician,
+        subject=f"New Assignment – Request #{req.id} ({req.room_number})",
+        html_template='emails/request_assigned_technician.html',
+        request_id=req.id,
+        room_number=req.room_number,
+        student_name=student.full_name if student else "Unknown",
+        category=req.category,
+        priority=req.priority,
+        description=req.description,
+        status=req.status
+    )
+
+    # ─── Feedback ─────────────────────────────────────────────
+    action = "Re-assigned" if old_technician_id else "Assigned"
+    flash(f"Request {action} to {technician.full_name}", "success")
+    
+    return redirect(url_for("requests"))   # or "dashboard" — your choice
+
+# ================= UPDATE STATUS =================
+
+@app.route("/update_status/<int:req_id>", methods=["POST"])
+@login_required
+def update_status(req_id):
+    if current_user.role != "Technician":
+        flash("Only technicians can update status", "danger")
+        return redirect(url_for("dashboard"))
+
+    req = Request.query.get_or_404(req_id)
+
+    if req.technician_id != current_user.id:
+        flash("This task is not assigned to you", "danger")
+        return redirect(url_for("dashboard"))
+
+    new_status = request.form.get("status")
+    allowed = ["Assigned", "In Progress", "Completed"]
+
+    if new_status in allowed:
+        if req.status == "Completed" and new_status != "Completed":
+            flash("Completed tasks cannot be changed back", "warning")
+        else:
+            req.status = new_status
+            db.session.commit()
+            flash(f"Status updated to {new_status}", "success")
+    else:
+        flash("Invalid status", "danger")
+
+    return redirect(url_for("technician_assigned_work"))
 
 # ================= NEW REQUEST =================
 
@@ -269,7 +614,7 @@ def dashboard():
 def new_request():
     if current_user.role != "student":
         flash("Only students can submit requests.", "danger")
-        return redirect(url_for("dashboard"))
+        return redirect(url_for("my_requests"))
 
     if request.method == 'POST':
         room_number = request.form.get('room_number', current_user.room_number)
@@ -302,6 +647,10 @@ def new_request():
         try:
             db.session.add(new_req)
             db.session.commit()
+            # ─────────────── NEW ───────────────
+            # Notify all admins about the new request
+            notify_admins_new_request(new_req)
+            # ───────────────────────────────────
             flash("Maintenance request submitted successfully!", "success")
             return redirect(url_for('my_requests'))
         except Exception as e:
