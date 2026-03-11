@@ -13,6 +13,11 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from datetime import datetime, timedelta
 import atexit
+import os
+import os
+from werkzeug.utils import secure_filename
+from typing import Optional
+from wtforms.validators import DataRequired, Length, Optional
 
 
 class AddUserForm(FlaskForm):
@@ -30,10 +35,18 @@ class AddUserForm(FlaskForm):
     )
     role = SelectField(
         'Role',
-        choices=[('Admin', 'Admin'), ('Technician', 'Technician'), ('User', 'User')],
+        choices=[('admin', 'Admin'), ('student', 'Student'), 
+                 ('plumber', 'Plumber'), ('cleaner', 'Cleaner'), 
+                 ('electrician', 'Electrician'), ('technician', 'Technician'),
+                 ('pest_controller', 'Pest Controller')],
         validators=[DataRequired()]
     )
+    room_number = StringField(
+        'Room Number',
+        validators=[Optional(), Length(max=20)]
+    )
     submit = SubmitField('Create User')
+
 app = Flask(__name__)
 
 scheduler = BackgroundScheduler()
@@ -42,10 +55,13 @@ scheduler.start()
 # Make sure scheduler shuts down cleanly
 atexit.register(lambda: scheduler.shutdown())
 
-
+UPLOAD_FOLDER = os.path.join('static', 'uploads')   # recommended location
+# or UPLOAD_FOLDER = 'uploads' if you prefer separate folder
 app.config['SECRET_KEY'] = 'secretkey'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///maintenance.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 
 # Email configuration (Use your Gmail credentials)
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
@@ -59,7 +75,13 @@ mail = Mail(app)
 
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
+# Allowed file extensions for uploads
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'pdf'}  # ← customize this list
 
+def allowed_file(filename):
+    """Check if the file extension is allowed."""
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # =================Notification Icon =================
 
@@ -110,7 +132,8 @@ class User(UserMixin, db.Model):
     full_name = db.Column(db.String(100))
     email = db.Column(db.String(120), unique=True)
     password_hash = db.Column(db.String(200))
-    role = db.Column(db.String(20))
+    role = db.Column(db.String(20))  # admin, student, plumber, cleaner, electrician, technician, pest_controller
+    room_number = db.Column(db.String(20), nullable=True)  # Only for students
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def unread_notifications_count(self):
@@ -122,14 +145,16 @@ class User(UserMixin, db.Model):
 
 class Request(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer)               # ← should link to logged-in user
-    technician_id = db.Column(db.Integer, nullable=True)
+    user_id = db.Column(db.Integer)  # Student who made the request
+    staff_id = db.Column(db.Integer, nullable=True)  # Assigned staff member (plumber, cleaner, etc.)
     room_number = db.Column(db.String(20), nullable=False)
-    category    = db.Column(db.String(50))        # ← added
+    category = db.Column(db.String(50))  # This will match staff roles
     description = db.Column(db.Text, nullable=False)
-    priority    = db.Column(db.String(20), nullable=False)
-    status      = db.Column(db.String(20), default="Pending")
-    created_at  = db.Column(db.DateTime, default=datetime.utcnow)
+    priority = db.Column(db.String(20), nullable=False)
+    status = db.Column(db.String(20), default="Pending")
+    photo_path = db.Column(db.String(200), nullable=True)  # Path to uploaded photo
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     def __repr__(self):
         return f"<Request {self.id} - {self.room_number}>"
@@ -217,12 +242,25 @@ def admin_required(f):
     def decorated_function(*args, **kwargs):
         if not current_user.is_authenticated:
             flash("Please log in to access this page.", "warning")
-            return redirect(url_for('login'))  # ← change 'login' to your actual login route name
+            return redirect(url_for('login'))
 
-        # Adjust this condition to match how your User model stores roles
-        if current_user.role.lower() not in ['admin', 'administrator']:
+        if current_user.role != 'admin':
             flash("You do not have permission to access this page.", "danger")
-            return redirect(url_for('dashboard'))  # ← or wherever you want to send non-admins
+            return redirect(url_for('dashboard'))
+
+        return f(*args, **kwargs)
+    return decorated_function
+
+def staff_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated:
+            flash("Please log in to access this page.", "warning")
+            return redirect(url_for('login'))
+
+        if current_user.role == 'admin' or current_user.role == 'student':
+            flash("Access denied. Staff only.", "danger")
+            return redirect(url_for('dashboard'))
 
         return f(*args, **kwargs)
     return decorated_function
@@ -247,21 +285,21 @@ def notify_admins_new_request(new_request):
         return
 
     student = current_user
-
     subject = f"New Maintenance Request #{new_request.id} — Room {new_request.room_number}"
 
     html_content = render_template(
-        'emails/new_request_notification.html',   # save the code above as this file
-        request_id      = new_request.id,
-        submitted_by_name  = student.full_name,
-        submitted_by_email = student.email,
-        room_number     = new_request.room_number,
-        category        = new_request.category,
-        priority        = new_request.priority,
-        description     = new_request.description,
-        status          = new_request.status,
-        created_at      = new_request.created_at.strftime('%Y-%m-%d %H:%M UTC'),
-        review_url      = "http://127.0.0.1:5000/requests"   # ← change in production
+        'emails/new_request_notification.html',
+        request_id=new_request.id,
+        submitted_by_name=student.full_name,
+        submitted_by_email=student.email,
+        room_number=new_request.room_number,
+        category=new_request.category,
+        priority=new_request.priority,
+        description=new_request.description,
+        status=new_request.status,
+        created_at=new_request.created_at.strftime('%Y-%m-%d %H:%M UTC'),
+        has_photo=bool(new_request.photo_path),
+        review_url="http://127.0.0.1:5000/requests"
     )
 
     try:
@@ -269,15 +307,33 @@ def notify_admins_new_request(new_request):
             subject=subject,
             sender=app.config['MAIL_USERNAME'],
             recipients=admin_emails,
-            body="Plain text fallback version here...",   # optional but recommended
+            body="New maintenance request submitted.",
             html=html_content
         )
+
+        # Attach photo if it exists
+        if new_request.photo_path:
+            full_path = os.path.join('static', new_request.photo_path)
+
+            if os.path.exists(full_path):
+                with open(full_path, 'rb') as f:
+                    data = f.read()
+
+                ext = new_request.photo_path.rsplit('.', 1)[-1].lower()
+                mime = f"image/{'jpeg' if ext in ('jpg','jpeg') else ext}"
+
+                msg.attach(
+                    filename=f"photo.{ext}",
+                    content_type=mime,
+                    data=data
+                )
+
         mail.send(msg)
-        print(f"→ HTML admin notification sent for request #{new_request.id}")
+        print(f"Notification sent for request #{new_request.id}")
+
     except Exception as e:
-        print(f"→ Failed to send admin notification: {e}")
-
-
+        print(f"Email failed: {e}")
+        
 def create_notification(user_id, message, notif_type='request', related_request_id=None):
     """Create an in-app notification for a user"""
     notif = Notification(
@@ -311,14 +367,21 @@ def notify_user_email(user, subject, html_template, **template_vars):
 def load_user(user_id):
     return User.query.get(int(user_id))
 
+
 @app.route("/", methods=["GET","POST"])
 def login():
     if request.method == "POST":
-        user = User.query.filter_by(email=request.form["email"]).first()
-        if user and check_password_hash(user.password_hash, request.form["password"]):
+        email = request.form["email"]
+        password = request.form["password"]
+
+        user = User.query.filter_by(email=email).first()
+
+        if user and check_password_hash(user.password_hash, password):
             login_user(user)
             return redirect(url_for("dashboard"))
-        flash("Invalid credentials")
+        else:
+            flash("Email or password is incorrect.", "danger")
+
     return render_template("login.html")
 
 @app.route("/logout")
@@ -329,20 +392,22 @@ def logout():
 
 @app.route('/admin/register', methods=['GET', 'POST'])
 @login_required
+@admin_required
 def register():
-    # Normalize role comparison (safer)
-    if current_user.role.lower() != 'admin':
-        flash('Only admins can create new users.', 'danger')
-        return redirect(url_for('dashboard'))
-    
     if request.method == 'POST':
         full_name = request.form.get('full_name', '').strip()
-        email     = request.form.get('email', '').strip().lower()
-        password  = request.form.get('password', '')
-        role      = request.form.get('role', 'user').strip().lower()  # normalize to lowercase
+        email = request.form.get('email', '').strip().lower()
+        password = request.form.get('password', '')
+        role = request.form.get('role', '').strip().lower()
+        room_number = request.form.get('room_number', '').strip()
 
         if not full_name or not email or not password:
             flash('All fields are required.', 'danger')
+            return redirect(url_for('register'))
+
+        # Validate room number for students
+        if role == 'student' and not room_number:
+            flash('Room number is required for students.', 'danger')
             return redirect(url_for('register'))
 
         if User.query.filter_by(email=email).first():
@@ -355,7 +420,8 @@ def register():
             full_name=full_name,
             email=email,
             password_hash=password_hash,
-            role=role,                    # stored as lowercase
+            role=role,
+            room_number=room_number if role == 'student' else None,
             created_at=datetime.utcnow()
         )
         
@@ -363,66 +429,133 @@ def register():
             db.session.add(new_user)
             db.session.commit()
             flash('User created successfully!', 'success')
-            return redirect(url_for('dashboard'))
+            return redirect(url_for('users'))
         except Exception as e:
             db.session.rollback()
             flash(f'Error creating user: {str(e)}', 'danger')
             return redirect(url_for('register'))
     
-    # GET request → show form
-    return render_template('register.html')
+    return render_template('admin/register.html')
 
 # ================= DASHBOARD =================
+
 @app.route("/dashboard")
 @login_required
 def dashboard():
-    if current_user.role == "Admin":
-        requests = Request.query.all()
-        total = Request.query.count()
-        pending = Request.query.filter_by(status="Pending").count()
+    # Common variables used across multiple roles
+    notifications = current_user.get_notifications(limit=12)
+    unread_count = current_user.unread_notifications_count()
+
+    if current_user.role == "admin":
+        total_requests = Request.query.count()
+        pending_requests = Request.query.filter_by(status="Pending").count()
+        in_progress = Request.query.filter_by(status="In Progress").count()
         completed = Request.query.filter_by(status="Completed").count()
-        # Pass notifications explicitly
-        notifications = current_user.get_notifications(limit=12)
 
-        return render_template("admin/dashboard.html",
-                               requests=requests,
-                               total=total,
-                               pending=pending,
-                               completed=completed,notifications=notifications,           # ← add this
-            unread_count=current_user.unread_notifications_count())
+        recent_requests = Request.query.order_by(Request.created_at.desc()).limit(10).all()
 
-    elif current_user.role == "Student":
-        requests = Request.query.filter_by(user_id=current_user.id).all()
-        return render_template("student_dashboard.html",
-                               requests=requests)
+        # Category breakdown
+        categories = {}
+        for cat in ['plumber', 'cleaner', 'electrician', 'technician', 'pest_controller']:
+            categories[cat] = Request.query.filter_by(category=cat).count()
+
+        return render_template(
+            "admin/dashboard.html",
+            total_requests=total_requests,
+            pending_requests=pending_requests,
+            in_progress=in_progress,
+            completed=completed,
+            recent_requests=recent_requests,
+            categories=categories,
+            notifications=notifications,
+            unread_count=unread_count
+        )
+
+    elif current_user.role.lower() == "student":
+        # Unified student handling (ignores case difference)
+        requests = Request.query.filter_by(user_id=current_user.id)\
+                               .order_by(Request.created_at.desc()).all()
+
+        pending_count = Request.query.filter_by(
+            user_id=current_user.id, status="Pending"
+        ).count()
+        in_progress_count = Request.query.filter_by(
+            user_id=current_user.id, status="In Progress"
+        ).count()
+        completed_count = Request.query.filter_by(
+            user_id=current_user.id, status="Completed"
+        ).count()
+
+        return render_template(
+            "student/dashboard.html",  # ← make sure this template exists
+            requests=requests,
+            pending_count=pending_count,
+            in_progress_count=in_progress_count,
+            completed_count=completed_count,
+            notifications=notifications,
+            unread_count=unread_count
+        )
+
     elif current_user.role == "Technician":
         requests = Request.query.filter_by(technician_id=current_user.id)\
-                                .order_by(Request.created_at.desc()).all()
-        
-        assigned_count    = Request.query.filter_by(technician_id=current_user.id, status="Assigned").count()
-        in_progress_count = Request.query.filter_by(technician_id=current_user.id, status="In Progress").count()
-        completed_count   = Request.query.filter_by(technician_id=current_user.id, status="Completed").count()
+                               .order_by(Request.created_at.desc()).all()
 
-        return render_template("technician_dashboard.html",
-                               requests=requests,
-                               active_page="dashboard",
-                               current_user=current_user,
-                               assigned_count=assigned_count,
-                               in_progress_count=in_progress_count,
-                               completed_count=completed_count)
+        pending_count = Request.query.filter_by(
+            technician_id=current_user.id, status="Pending"
+        ).count()
+        in_progress_count = Request.query.filter_by(
+            technician_id=current_user.id, status="In Progress"
+        ).count()
+        completed_count = Request.query.filter_by(
+            technician_id=current_user.id, status="Completed"
+        ).count()
+
+        return render_template(
+            "technician/dashboard.html",  # ← adjust template name if needed
+            requests=requests,
+            pending_count=pending_count,
+            in_progress_count=in_progress_count,
+            completed_count=completed_count,
+            current_user=current_user,
+            notifications=notifications,
+            unread_count=unread_count
+        )
 
     else:
-        flash("Unknown role", "danger")
-        return redirect(url_for("login"))
+        # Other staff roles (plumber, cleaner, electrician, pest_controller, etc.)
+        requests = Request.query.filter_by(staff_id=current_user.id)\
+                               .order_by(Request.created_at.desc()).all()
 
+        pending_count = Request.query.filter_by(
+            staff_id=current_user.id, status="Pending"
+        ).count()
+        in_progress_count = Request.query.filter_by(
+            staff_id=current_user.id, status="In Progress"
+        ).count()
+        completed_count = Request.query.filter_by(
+            staff_id=current_user.id, status="Completed"
+        ).count()
 
+        return render_template(
+            "staff/dashboard.html",  # ← adjust template name if needed
+            requests=requests,
+            pending_count=pending_count,
+            in_progress_count=in_progress_count,
+            completed_count=completed_count,
+            notifications=notifications,
+            unread_count=unread_count
+        )
+
+    # Fallback - should rarely reach here if roles are properly set
+    flash("Unknown or invalid user role", "danger")
+    return redirect(url_for("login"))
 
 
 # ================= ASSIGN TECHNICIAN =================
 
 
 
-@app.route("/assign/<int:req_id>", methods=["POST"])
+@app.route("/assign/<int:req_id>", methods=["POST"], endpoint="assign_post")
 @login_required
 @admin_required
 def assign(req_id):
@@ -548,21 +681,30 @@ def update_status(req_id):
 
 # ================= NEW REQUEST =================
 
-@app.route('/new-request', methods=['GET', 'POST'])
+@app.route('/new_request', methods=['GET', 'POST'])
 @login_required
 def new_request():
-    if current_user.role != "Student":
+    if current_user.role != "student":
         flash("Only students can submit requests.", "danger")
         return redirect(url_for("my_requests"))
 
     if request.method == 'POST':
-        room_number = request.form.get('room_number')
-        category    = request.form.get('category')
-        priority    = request.form.get('priority')
+        room_number = request.form.get('room_number', current_user.room_number)
+        category = request.form.get('category')
+        priority = request.form.get('priority')
         description = request.form.get('description')
+        
+        # Handle file upload
+        photo_path = None
+        if 'photo' in request.files:
+            file = request.files['photo']
+            if file and file.filename != '' and allowed_file(file.filename):
+                filename = secure_filename(f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{file.filename}")
+                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                photo_path = f"uploads/{filename}"
 
         if not all([room_number, category, priority, description]):
-            flash("Please fill in all fields", "danger")
+            flash("Please fill in all required fields", "danger")
             return redirect(url_for('new_request'))
 
         new_req = Request(
@@ -570,7 +712,8 @@ def new_request():
             room_number=room_number.strip(),
             category=category,
             priority=priority,
-            description=description.strip()
+            description=description.strip(),
+            photo_path=photo_path
         )
 
         try:
@@ -586,152 +729,96 @@ def new_request():
             db.session.rollback()
             flash(f"Error saving request: {str(e)}", "danger")
 
-    return render_template('student/new_request.html')
+    # Pre-populate with student's room number
+    return render_template('student/new_request.html', 
+                         default_room=current_user.room_number)
 
 # ================= MY REQUESTS =================
 
 @app.route('/my-requests')
 @login_required
 def my_requests():
-    if current_user.role != "Student":
+    if current_user.role != "student":
         flash("Unauthorized access.", "danger")
         return redirect(url_for("dashboard"))
 
-    requests = Request.query.filter_by(user_id=current_user.id).order_by(Request.created_at.desc()).all()
-    return render_template('student/my_requests.html', requests=requests)
+    page = request.args.get('page', 1, type=int)  # Get current page from query parameter
+    per_page = 10  # Number of requests per page
 
-# Make sure this route exists (from previous messages):
+    # Paginate query
+    pagination = Request.query.filter_by(user_id=current_user.id)\
+                              .order_by(Request.created_at.desc())\
+                              .paginate(page=page, per_page=per_page)
+
+    requests = pagination.items  # Only requests for the current page
+
+    # Add staff names to requests
+    for req in requests:
+        if req.staff_id:
+            staff = User.query.get(req.staff_id)
+            req.staff_name = staff.full_name if staff else "Unknown"
+
+    return render_template('student/my_requests.html', requests=requests, pagination=pagination)
+
+
+# ================= ADMIN REQUESTS VIEW =================
+
 @app.route("/requests")
 @login_required
+@admin_required
 def requests():
-    if current_user.role.lower() != "admin":
-        flash("Only admins can view all requests.", "danger")
-        return redirect(url_for("dashboard"))
-    
-    requests = Request.query.order_by(Request.created_at.desc()).all()
-    technicians = User.query.filter_by(role="Technician").all()
+    page = request.args.get('page', 1, type=int)
 
-    # ← Add this block
+    requests = Request.query.order_by(Request.created_at.desc()).paginate(
+        page=page,
+        per_page=10,
+        error_out=False
+    )
+    
+    # Get all staff members by category
+    staff_by_category = {}
+    staff_roles = ['plumber', 'cleaner', 'electrician', 'technician', 'pest_controller']
+    for role in staff_roles:
+        staff_by_category[role] = User.query.filter_by(role=role).all()
+    
+    # Add student and staff names
     for req in requests:
         student = User.query.get(req.user_id)
         req.student_name = student.full_name if student else "Unknown Student"
-
-        # Bonus: also add technician name (optional but useful)
-        if req.technician_id:
-            tech = User.query.get(req.technician_id)
-            req.technician_name = tech.full_name if tech else "Unknown Technician"
+        req.student_room = student.room_number if student else "Unknown"
+        
+        if req.staff_id:
+            staff = User.query.get(req.staff_id)
+            req.staff_name = staff.full_name if staff else "Unknown"
         else:
-            req.technician_name = "Not assigned"
+            req.staff_name = "Not assigned"
 
     return render_template("admin/requests.html", 
-                           requests=requests, 
-                           technicians=technicians,
-                           User=User)
+                         requests=requests,
+                         staff_by_category=staff_by_category,
+                         User=User)
+
+# ================= USERS MANAGEMENT =================
 
 @app.route("/users")
 @login_required
+@admin_required
 def users():
-    if current_user.role.lower() != "admin":
-        flash("Only admins can view the users list.", "danger")
-        return redirect(url_for("dashboard"))
-    
-    users = User.query.order_by(User.created_at.desc()).all()
-    return render_template("admin/users.html", users=users)
 
-# ================= EDIT REQUEST =================
+    page = request.args.get('page', 1, type=int)
 
-@app.route('/requests/<int:request_id>/edit', methods=['GET', 'POST'])
-@login_required
-def edit_request(request_id):
-    if current_user.role != "Student":
-        flash("Only students can edit their requests.", "danger")
-        return redirect(url_for("dashboard"))
-
-    req = Request.query.get_or_404(request_id)
-
-    # Ownership check
-    if req.user_id != current_user.id:
-        flash("You can only edit your own requests.", "danger")
-        return redirect(url_for("my_requests"))
-
-    # Status protection
-    if req.status in ["Assigned", "Completed"]:
-        flash("This request can no longer be edited.", "warning")
-        return redirect(url_for("my_requests"))
-
-    if request.method == "POST":
-        room_number = request.form.get("room_number", "").strip()
-        category    = request.form.get("category", "").strip()
-        priority    = request.form.get("priority", "").strip()
-        description = request.form.get("description", "").strip()
-
-        if not all([room_number, category, priority, description]):
-            flash("All fields are required.", "danger")
-            return redirect(url_for("edit_request", request_id=request_id))
-
-        # Update fields
-        req.room_number  = room_number
-        req.category     = category
-        req.priority     = priority
-        req.description  = description
-        # Note: status, technician_id, created_at are NOT changed here
-
-        try:
-            db.session.commit()
-            flash("Request updated successfully!", "success")
-            return redirect(url_for("my_requests"))
-        except Exception as e:
-            db.session.rollback()
-            flash(f"Error updating request: {str(e)}", "danger")
-
-    # GET → show form with current values
-    return render_template(
-        "student/edit_request.html",
-        request=req,           # passing the object so fields can be pre-filled
-        current_user=current_user
+    users = User.query.order_by(User.created_at.desc()).paginate(
+        page=page,
+        per_page=10,
+        error_out=False
     )
 
+    return render_template("admin/users.html", users=users)
 
-# ================= DELETE REQUEST =================
-
-@app.route('/requests/<int:request_id>/delete', methods=['POST'])
-@login_required
-def delete_request(request_id):
-    if current_user.role != "Student":
-        flash("Only students can delete their requests.", "danger")
-        return redirect(url_for("dashboard"))
-
-    req = Request.query.get_or_404(request_id)
-
-    # Ownership check
-    if req.user_id != current_user.id:
-        flash("You can only delete your own requests.", "danger")
-        return redirect(url_for("my_requests"))
-
-    # Status protection (same rule as edit)
-    if req.status in ["Assigned", "Completed"]:
-        flash("Cannot delete a request that has been assigned or completed.", "warning")
-        return redirect(url_for("my_requests"))
-
-    try:
-        db.session.delete(req)
-        db.session.commit()
-        flash("Request deleted successfully.", "success")
-    except Exception as e:
-        db.session.rollback()
-        flash(f"Error deleting request: {str(e)}", "danger")
-
-    return redirect(url_for("my_requests"))
-
-
-# ================= EDIT REQUEST =================
 @app.route('/users/<int:user_id>/edit', methods=['GET', 'POST'])
 @login_required
+@admin_required
 def edit_user(user_id):
-    if current_user.role.lower() != 'admin':
-        flash("Only admins can edit users.", "danger")
-        return redirect(url_for('dashboard'))
-    
     user = User.query.get_or_404(user_id)
     
     if user.id == current_user.id:
@@ -740,7 +827,8 @@ def edit_user(user_id):
     
     if request.method == 'POST':
         full_name = request.form.get('full_name', '').strip()
-        role = request.form.get('role', '').strip().title()  # Admin, Student, Technician
+        role = request.form.get('role', '').strip().lower()
+        room_number = request.form.get('room_number', '').strip()
         new_password = request.form.get('new_password', '')
         confirm_password = request.form.get('confirm_password', '')
 
@@ -748,8 +836,14 @@ def edit_user(user_id):
             flash("Full name and role are required.", "danger")
             return redirect(url_for('edit_user', user_id=user_id))
 
+        # Validate room number for students
+        if role == 'student' and not room_number:
+            flash("Room number is required for students.", "danger")
+            return redirect(url_for('edit_user', user_id=user_id))
+
         user.full_name = full_name
         user.role = role
+        user.room_number = room_number if role == 'student' else None
 
         # Optional password change
         if new_password and confirm_password:
@@ -765,22 +859,18 @@ def edit_user(user_id):
 
     return render_template('admin/edit_user.html', user=user)
 
-# ================= DELETE REQUEST =================
 @app.route('/users/<int:user_id>/delete', methods=['POST'])
 @login_required
+@admin_required
 def delete_user(user_id):
-    if current_user.role.lower() != 'admin':
-        flash("Only admins can delete users.", "danger")
-        return redirect(url_for('users'))
-    
     user = User.query.get_or_404(user_id)
     
     if user.id == current_user.id:
         flash("You cannot delete your own account.", "danger")
         return redirect(url_for('users'))
     
-    # Optional: prevent deleting last admin
-    if user.role.lower() == 'admin' and User.query.filter_by(role='Admin').count() <= 1:
+    # Prevent deleting last admin
+    if user.role == 'admin' and User.query.filter_by(role='admin').count() <= 1:
         flash("Cannot delete the last admin account.", "danger")
         return redirect(url_for('users'))
     
@@ -790,46 +880,207 @@ def delete_user(user_id):
     flash(f"User {user.full_name} deleted.", "success")
     return redirect(url_for('users'))
 
-# ================= Technician =================
-    
-# 2. Technician assigned work page
-@app.route("/technician/assigned-work")
+# ================= ASSIGN STAFF =================
+
+@app.route("/assign/<int:req_id>", methods=["POST"])
 @login_required
-def technician_assigned_work():
-    if current_user.role != "Technician":
+@admin_required
+def assign(req_id):
+    req = Request.query.get_or_404(req_id)
+    staff_id = request.form.get("staff_id")
+    
+    if staff_id:
+        staff = User.query.get(staff_id)
+        if staff and staff.role == req.category:
+            req.staff_id = staff_id
+            req.status = "Assigned"
+            db.session.commit()
+            flash(f"Assigned to {staff.full_name}", "success")
+        else:
+            flash("Invalid staff assignment", "danger")
+    else:
+        flash("Please select a staff member", "danger")
+    
+    return redirect(url_for("requests"))
+
+# ================= UPDATE STATUS (Staff) =================
+
+@app.route("/update_status/<int:req_id>", methods=["POST"],endpoint="update_request_status")
+@login_required
+def update_status(req_id):
+    # Allow both staff and admin to update status
+    if current_user.role == 'student':
+        flash("Only staff can update status", "danger")
+        return redirect(url_for("dashboard"))
+
+    req = Request.query.get_or_404(req_id)
+
+    # If staff (not admin), check if assigned to them
+    if current_user.role != 'admin' and req.staff_id != current_user.id:
+        flash("This task is not assigned to you", "danger")
+        return redirect(url_for("dashboard"))
+
+    new_status = request.form.get("status")
+    allowed = ["Assigned", "In Progress", "Completed"]
+
+    if new_status in allowed:
+        if req.status == "Completed" and new_status != "Completed":
+            flash("Completed tasks cannot be changed back", "warning")
+        else:
+            req.status = new_status
+            db.session.commit()
+            flash(f"Status updated to {new_status}", "success")
+    else:
+        flash("Invalid status", "danger")
+
+    # Redirect based on role
+    if current_user.role == 'admin':
+        return redirect(url_for("requests"))
+    else:
+        return redirect(url_for("staff_assigned_work"))
+
+# ================= STAFF ASSIGNED WORK =================
+
+@app.route("/staff/assigned-work")
+@login_required
+def staff_assigned_work():
+    if current_user.role == 'admin' or current_user.role == 'student':
         flash("Access denied", "danger")
         return redirect(url_for("dashboard"))
 
-    requests = Request.query.filter_by(technician_id=current_user.id)\
-                            .order_by(Request.created_at.desc()).all()
+    requests = Request.query.filter_by(staff_id=current_user.id)\
+                           .order_by(Request.created_at.desc()).all()
+    
+    # Add student names and rooms
+    for req in requests:
+        student = User.query.get(req.user_id)
+        req.student_name = student.full_name if student else "Unknown"
+        req.student_room = student.room_number if student else "Unknown"
 
-    return render_template("technician_dashboard.html",
-                           requests=requests,
-                           active_page="assigned",
-                           current_user=current_user)
+    return render_template("staff/assigned_work.html",
+                         requests=requests,
+                         role_display=current_user.role.replace('_', ' ').title(),
+                         current_user=current_user)
 
+# ================= EDIT REQUEST (Student) =================
 
-# ================= adding a user =================
-# routes.py
+@app.route('/requests/<int:request_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_request(request_id):
+    if current_user.role != "student":
+        flash("Only students can edit their requests.", "danger")
+        return redirect(url_for("dashboard"))
+
+    req = Request.query.get_or_404(request_id)
+
+    if req.user_id != current_user.id:
+        flash("You can only edit your own requests.", "danger")
+        return redirect(url_for("my_requests"))
+
+    if req.status in ["Assigned", "In Progress", "Completed"]:
+        flash("This request can no longer be edited.", "warning")
+        return redirect(url_for("my_requests"))
+
+    if request.method == "POST":
+        room_number = request.form.get("room_number", "").strip()
+        category = request.form.get("category", "").strip()
+        priority = request.form.get("priority", "").strip()
+        description = request.form.get("description", "").strip()
+
+        if not all([room_number, category, priority, description]):
+            flash("All fields are required.", "danger")
+            return redirect(url_for("edit_request", request_id=request_id))
+
+        # Handle photo upload
+        if 'photo' in request.files:
+            file = request.files['photo']
+            if file and file.filename != '' and allowed_file(file.filename):
+                # Delete old photo if exists
+                if req.photo_path:
+                    old_photo = os.path.join('static', req.photo_path)
+                    if os.path.exists(old_photo):
+                        os.remove(old_photo)
+                
+                filename = secure_filename(f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{file.filename}")
+                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                req.photo_path = f"uploads/{filename}"
+
+        req.room_number = room_number
+        req.category = category
+        req.priority = priority
+        req.description = description
+
+        try:
+            db.session.commit()
+            flash("Request updated successfully!", "success")
+            return redirect(url_for("my_requests"))
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error updating request: {str(e)}", "danger")
+
+    return render_template("student/edit_request.html", request=req)
+
+# ================= DELETE REQUEST (Student) =================
+
+@app.route('/requests/<int:request_id>/delete', methods=['POST'])
+@login_required
+def delete_request(request_id):
+    if current_user.role != "student":
+        flash("Only students can delete their requests.", "danger")
+        return redirect(url_for("dashboard"))
+
+    req = Request.query.get_or_404(request_id)
+
+    if req.user_id != current_user.id:
+        flash("You can only delete your own requests.", "danger")
+        return redirect(url_for("my_requests"))
+
+    if req.status in ["Assigned", "In Progress", "Completed"]:
+        flash("Cannot delete a request that has been assigned or is in progress.", "warning")
+        return redirect(url_for("my_requests"))
+
+    # Delete photo if exists
+    if req.photo_path:
+        photo_file = os.path.join('static', req.photo_path)
+        if os.path.exists(photo_file):
+            os.remove(photo_file)
+
+    try:
+        db.session.delete(req)
+        db.session.commit()
+        flash("Request deleted successfully.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error deleting request: {str(e)}", "danger")
+
+    return redirect(url_for("my_requests"))
+
+# ================= ADD USER FORM ROUTE =================
+
 @app.route('/users/add', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def add_user():
     form = AddUserForm()
     if form.validate_on_submit():
-        # Check if email already exists
         existing = User.query.filter_by(email=form.email.data.lower()).first()
         if existing:
             flash('This email is already registered.', 'danger')
-            return render_template('add_user.html', form=form)
+            return render_template('admin/add_user.html', form=form)
+
+        # Validate room number for students
+        if form.role.data == 'student' and not form.room_number.data:
+            flash('Room number is required for students.', 'danger')
+            return render_template('admin/add_user.html', form=form)
 
         hashed_pw = generate_password_hash(form.password.data)
 
         user = User(
-            full_name = form.full_name.data.strip(),
-            email     = form.email.data.lower().strip(),
-            password_hash = hashed_pw,               # ← hashed!
-            role      = form.role.data
+            full_name=form.full_name.data.strip(),
+            email=form.email.data.lower().strip(),
+            password_hash=hashed_pw,
+            role=form.role.data,
+            room_number=form.room_number.data if form.role.data == 'student' else None
         )
         db.session.add(user)
         db.session.commit()
@@ -837,7 +1088,8 @@ def add_user():
         flash('User created successfully!', 'success')
         return redirect(url_for('users'))
 
-    return render_template('add_user.html', form=form)
+    return render_template('admin/add_user.html', form=form)
+
 # ================= EMAIL NOTIFICATION =================
 
 def send_email(to, subject, body):
@@ -855,33 +1107,51 @@ def notify(req_id):
     flash("Email sent")
     return redirect(url_for("dashboard"))
 
-# ================= CREATE REQUEST (Legacy - Redirect to New) =================
+# ================= VIEW PHOTO =================
 
-@app.route("/create_request", methods=["POST"])
+@app.route('/view-photo/<int:request_id>')
 @login_required
-def create_request():
-    if current_user.role != "Student":
-        return "Unauthorized"
-    # Redirect to new_request for consistency
-    return redirect(url_for("new_request"))
+def view_photo(request_id):
+    req = Request.query.get_or_404(request_id)
+    
+    # Check permissions
+    if current_user.role == 'student' and req.user_id != current_user.id:
+        flash("Access denied", "danger")
+        return redirect(url_for('dashboard'))
+    
+    if current_user.role != 'admin' and current_user.role != 'student' and req.staff_id != current_user.id:
+        flash("Access denied", "danger")
+        return redirect(url_for('dashboard'))
+    
+    if not req.photo_path:
+        flash("No photo available for this request", "warning")
+        return redirect(request.referrer or url_for('dashboard'))
+    
+    return render_template('view_photo.html', request=req)
 
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
 
-        users = [
-            ("Admin User", "admin@gmail.com", "admin123", "Admin"),
-            ("Student User", "student@gmail.com", "student123", "Student"),
-            ("Technician User", "tech@gmail.com", "tech123", "Technician")
+        # Create default users if they don't exist
+        default_users = [
+            ("Admin User", "admin@gmail.com", "admin123", "admin", None),
+            ("Student User", "student@gmail.com", "student123", "student", "101A"),
+            ("Plumber User", "plumber@gmail.com", "plumber123", "plumber", None),
+            ("Cleaner User", "cleaner@gmail.com", "cleaner123", "cleaner", None),
+            ("Electrician User", "electrician@gmail.com", "electrician123", "electrician", None),
+            ("Technician User", "tech@gmail.com", "tech123", "technician", None),
+            ("Pest Controller User", "pest@gmail.com", "pest123", "pest_controller", None)
         ]
 
-        for name, email, password, role in users:
+        for name, email, password, role, room in default_users:
             if not User.query.filter_by(email=email).first():
                 user = User(
                     full_name=name,
                     email=email,
                     password_hash=generate_password_hash(password),
-                    role=role
+                    role=role,
+                    room_number=room
                 )
                 db.session.add(user)
 

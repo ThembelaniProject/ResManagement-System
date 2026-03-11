@@ -88,7 +88,7 @@
     }
     .button {
       display: inline-block;
-      background-color: #2563eb;
+      background-color: #101d3a;
       color: white;
       padding: 12px 28px;
       text-decoration: none;
@@ -103,6 +103,16 @@
     .small {
       font-size: 13px;
       color: #ffffff;
+    }
+
+    photo-container {
+      text-align: center;
+      margin: 28px 0 36px 0;
+    }
+    .photo-caption {
+      font-size: 13px;
+      color: #6b7280;
+      margin-top: 10px;
     }
   </style>
 </head>
@@ -165,6 +175,18 @@
         <strong>Description:</strong><br>
         {{ description | safe }}
       </div>
+      {% if has_photo %}
+      <div class="photo-container">
+        <img 
+          src="cid:request_photo" 
+          alt="User-uploaded photo for maintenance request in room {{ room_number }}" 
+          style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); display: block; margin: 0 auto;"
+        />
+        <p class="photo-caption">
+          Attached photo showing the issue
+        </p>
+      </div>
+      {% endif %}
 
       <div style="text-align: center; margin: 32px 0;">
         <a href="{{ review_url }}" class="button">Review All Requests →</a>
