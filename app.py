@@ -202,10 +202,7 @@ scheduler.add_job(
     name='Check for overdue requests and create reminders',
     replace_existing=True
 )  
-# ─────────────── FOR TESTING ONLY ───────────────
-# Force-run the reminder check once on startup
-check_and_create_reminder_notifications()
-print("→ Reminder check executed manually on startup")
+
 @app.route('/notifications/mark-read', methods=['POST'])
 @login_required
 def mark_notifications_read():
