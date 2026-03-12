@@ -204,18 +204,6 @@ def dashboard():
         return redirect(url_for("login"))
 
 
-@app.route("/update_status/<int:request_id>", methods=["POST"])
-@login_required
-def update_status(request_id):
-    req = Request.query.get_or_404(request_id)
-
-    new_status = request.form.get("status")
-    req.status = new_status
-
-    db.session.commit()
-
-    flash("Request status updated successfully", "success")
-    return redirect(url_for("technician_assigned_work"))
 
 # ================= ASSIGN TECHNICIAN =================
 
