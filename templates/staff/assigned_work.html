@@ -388,6 +388,7 @@
                                 <th>Student</th>
                                 <th>Reported</th>
                                 <th>Status</th>
+                                <th>Rating</th
                                 <th>Update</th>
                             </tr>
                         </thead>
@@ -446,6 +447,17 @@
                                         {{ req.status }}
                                     </span>
                                 </td>
+                                <td>
+                            {% if req.rating is not none %}
+                                <span class="text-warning">
+                                    {% for i in range(req.rating) %}<i class="bi bi-star-fill"></i>{% endfor %}
+                                    {% for i in range(5 - req.rating) %}<i class="bi bi-star"></i>{% endfor %}
+                                </span>
+                                {{ req.rating }}/5
+                            {% else %}
+                                <span class="text-muted">Not rated yet</span>
+                            {% endif %}
+                        </td>
                                 <td>
                                     <form method="POST" action="{{ url_for('update_status', req_id=req.id) }}" class="action-form">
                                         <select name="status" class="form-select form-select-sm mb-1">
