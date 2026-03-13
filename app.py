@@ -67,7 +67,7 @@ mail = Mail(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
-<<<<<<< HEAD
+
 # ================= SCHEDULER SETUP =================
 scheduler = BackgroundScheduler()
 scheduler.start()
@@ -107,11 +107,13 @@ def notifications_all():
 # ────────────────────────────────────────────────
 # Models
 # ────────────────────────────────────────────────
->>>>>>> origin/main
+
+
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     full_name = db.Column(db.String(100))
     password_hash = db.Column(db.String(200))
+    email = db.Column(db.String(120), unique=True, nullable=False, index=True)
     role = db.Column(db.String(20))
     room_number = db.Column(db.String(20), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -1007,7 +1009,81 @@ def test_email():
         </body>
         </html>
         """
+# ================= PASSWORD RESET ROUTES =================
 
+@app.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip().lower()
+        
+        if not email:
+            flash('Please enter your email address.', 'warning')
+            return render_template('forgot_password.html')
+
+        user = User.query.filter_by(email=email).first()
+        
+        if not user:
+            # Still show success message for security (don't reveal if email exists)
+            flash('If an account with that email exists, you will receive a password reset link.', 'info')
+            return redirect(url_for('login'))
+
+        token = generate_reset_token(user.email)
+        reset_url = url_for('reset_password', token=token, _external=True)
+
+        success = send_reset_email(user.email, reset_url, user.full_name)
+        
+        if success:
+            flash('Password reset instructions have been sent to your email.', 'success')
+        else:
+            flash('Failed to send reset email. Please try again later or contact support.', 'danger')
+
+        return redirect(url_for('login'))
+
+    return render_template('forgot_password.html')
+
+
+@app.route('/reset-password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+
+    email = verify_reset_token(token)
+    
+    if not email:
+        flash('Invalid or expired reset link. Please request a new one.', 'danger')
+        return redirect(url_for('forgot_password'))
+
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        flash('Invalid reset link.', 'danger')
+        return redirect(url_for('login'))
+
+    if request.method == 'POST':
+        password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
+
+        if not password or not confirm_password:
+            flash('Please fill in both password fields.', 'warning')
+            return render_template('reset_password.html', token=token)
+
+        if password != confirm_password:
+            flash('Passwords do not match.', 'danger')
+            return render_template('reset_password.html', token=token)
+
+        if len(password) < 8:
+            flash('Password must be at least 8 characters long.', 'warning')
+            return render_template('reset_password.html', token=token)
+
+        user.password_hash = generate_password_hash(password)
+        db.session.commit()
+
+        flash('Your password has been updated successfully! Please log in.', 'success')
+        return redirect(url_for('login'))
+
+    return render_template('reset_password.html', token=token)
 # ────────────────────────────────────────────────
 # Run application
 # ────────────────────────────────────────────────
