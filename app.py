@@ -104,6 +104,106 @@ def notifications_all():
     notifs = current_user.notifications.order_by(Notification.created_at.desc()).all()
     return render_template('notifications_all.html', notifications=notifs)
 
+
+@app.route('/requests/<int:request_id>/rate', methods=['GET', 'POST'])
+@login_required
+def rate_request(request_id):
+    if current_user.role != "student":
+        flash("Only students can rate requests.", "danger")
+        return redirect(url_for("dashboard"))
+
+    req = Request.query.get_or_404(request_id)
+
+    # Security: only allow rating your own requests
+    if req.user_id != current_user.id:
+        flash("You can only rate your own requests.", "danger")
+        return redirect(url_for("my_requests"))
+
+    if req.status != "Completed":
+        flash("You can only rate completed requests.", "warning")
+        return redirect(url_for("my_requests"))
+
+    if req.rating is not None:
+        flash("You have already rated this request.", "info")
+        return redirect(url_for("my_requests"))
+
+    if request.method == "POST":
+        try:
+            rating_str = request.form.get("rating")
+            comment = request.form.get("comment", "").strip()
+
+            if not rating_str or not rating_str.isdigit():
+                flash("Please select a valid rating.", "danger")
+                return redirect(url_for("rate_request", request_id=request_id))
+
+            rating = int(rating_str)
+
+            if not 1 <= rating <= 5:
+                flash("Rating must be between 1 and 5 stars.", "danger")
+                return redirect(url_for("rate_request", request_id=request_id))
+
+            # Save rating
+            req.rating = rating
+            req.rating_comment = comment if comment else None
+            req.rated_at = datetime.utcnow()
+
+            # ────────────────────────────────────────────────
+            # Update staff average rating
+            # ────────────────────────────────────────────────
+            if req.staff_id:
+                staff = User.query.get(req.staff_id)
+                if staff:
+                    # Get all rated requests for this staff member
+                    rated_requests = Request.query.filter(
+                        Request.staff_id == staff.id,
+                        Request.rating.isnot(None)
+                    ).all()
+
+                    if rated_requests:
+                        total = sum(r.rating for r in rated_requests)
+                        count = len(rated_requests)
+                        staff.average_rating = round(total / count, 2)
+                        staff.rating_count = count
+                    else:
+                        staff.average_rating = 0.0
+                        staff.rating_count = 0
+
+                    db.session.add(staff)
+
+            db.session.commit()
+            flash("Thank you for your feedback!", "success")
+
+            # Optional: email notification to staff
+            if req.staff_id:
+                staff = User.query.get(req.staff_id)  # already queried earlier, but safe
+                if staff and staff.email:
+                    try:
+                        msg = Message(
+                            subject="New Rating Received",
+                            sender=app.config['MAIL_USERNAME'],
+                            recipients=[staff.email]
+                        )
+                        msg.body = (
+                            f"Your work on request #{req.id} was rated {rating}/5 "
+                            f"by the student."
+                        )
+                        if comment:
+                            msg.body += f"\nComment: {comment}"
+                        mail.send(msg)
+                    except Exception as email_err:
+                        app.logger.warning(f"Failed to send rating email: {email_err}")
+                        # silent fail - user doesn't need to know
+
+            return redirect(url_for("my_requests"))
+
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error saving rating: {str(e)}", "danger")
+            # In production: log the error properly
+            app.logger.error(f"Rating save failed for request {request_id}: {str(e)}")
+
+    # GET: show rating form
+    return render_template("student/rate_request.html", request=req)
 # ────────────────────────────────────────────────
 # Models
 # ────────────────────────────────────────────────
@@ -117,6 +217,16 @@ class User(UserMixin, db.Model):
     role = db.Column(db.String(20))
     room_number = db.Column(db.String(20), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    # ─── NEW ──────────── (only meaningful for staff)
+    average_rating = db.Column(db.Float, default=0.0, nullable=False)
+    rating_count = db.Column(db.Integer, default=0, nullable=False)
+    # ───────────────────────────────────────────────
+    def update_average_rating(self):
+        if self.rating_count == 0:
+            self.average_rating = 0.0
+        else:
+            # We'll calculate from requests when needed, but store cached value
+            pass  # see route below for actual logic
 
     def unread_notifications_count(self):
         return self.notifications.filter_by(is_read=False).count()
@@ -134,6 +244,11 @@ class Request(db.Model):
     priority = db.Column(db.String(20), nullable=False)
     status = db.Column(db.String(20), default="Pending")
     photo_path = db.Column(db.String(200), nullable=True)
+    # ─── NEW ───────────────────────────────────────
+    rating = db.Column(db.Integer, nullable=True)             # 1–5
+    rating_comment = db.Column(db.Text, nullable=True)
+    rated_at = db.Column(db.DateTime, nullable=True)
+    # ───────────────────────────────────────────────
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
