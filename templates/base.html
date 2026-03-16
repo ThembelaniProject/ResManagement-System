@@ -35,7 +35,14 @@
 <!-- Navbar (you can override or remove per page if needed) -->
 <nav class="navbar navbar-expand navbar-dark bg-primary">
     <div class="container-fluid">
-        <a class="navbar-brand" href="{{ url_for('dashboard') }}">Res Maintenance System</a>
+         <a class="navbar-brand d-flex align-items-center" href="#">
+                <!-- Replace with your actual logo path -->
+                <img src="{{ url_for('static', filename='images/Logo-p.png') }}" 
+                     alt="Admin Logo" class="me-2">
+                <!-- Optional text if you want brand name beside logo -->
+                <!-- <span class="fw-bold fs-5 d-none d-md-inline">YourApp</span> -->
+            </a>
+        
         <div class="ms-auto d-flex align-items-center">
             <span class="text-white me-3">{{ current_user.full_name }} ({{ current_user.role }})</span>
             <a href="{{ url_for('logout') }}" class="btn btn-outline-light btn-sm">Logout</a>

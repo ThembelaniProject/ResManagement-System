@@ -22,6 +22,11 @@
             min-height: 100vh;
             background: var(--bs-body-bg);
         }
+        .navbar-brand img {
+            height: 38px;              /* Adjust size as needed */
+            width: auto;
+            max-width: 160px;
+        }
         .sidebar {
             position: fixed;
             inset: 0 auto 0 0;
@@ -80,6 +85,14 @@
         .chart-container { height: 420px; }
         .nav-link { border-radius: 10px; }
         .nav-link.active, .nav-link:hover { background: rgba(255,255,255,0.12); }
+
+         .room-info {
+            background: linear-gradient(135deg, #a2c0fb 0%, #2e3e2b 100%);
+            color: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
@@ -134,6 +147,14 @@
     <!-- Topbar -->
     <header class="navbar navbar-expand-lg bg-white shadow-sm sticky-top px-4">
         <div class="container-fluid">
+            <!-- Logo + Mobile toggle -->
+            <a class="navbar-brand d-flex align-items-center" href="#">
+                <!-- Replace with your actual logo path -->
+                <img src="{{ url_for('static', filename='images/Logo-p.png') }}" 
+                     alt="Admin Logo" class="me-2">
+                <!-- Optional text if you want brand name beside logo -->
+                <!-- <span class="fw-bold fs-5 d-none d-md-inline">YourApp</span> -->
+            </a>
             <!-- Mobile toggle -->
             <button class="btn btn-outline-secondary d-lg-none me-3" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebar" aria-controls="sidebar">
                 <i class="bi bi-list fs-4"></i>
@@ -247,109 +268,27 @@
                 <li class="breadcrumb-item active">Dashboard</li>
             </ol>
         </nav>
-        <div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
-            <h1 class="h2 mb-0">Overview</h1>
-            <div class="btn-group btn-group-sm">
-                <button type="button" class="btn btn-outline-secondary">Today</button>
-                <button type="button" class="btn btn-outline-secondary">Week</button>
-                <button type="button" class="btn btn-outline-secondary active">Month</button>
-            </div>
-        </div>
+       
 
-        <!-- Stats -->
-        <div class="row g-4 mb-5">
-            <div class="col-12 col-sm-6 col-xl-4">
-                <div class="card card-stat bg-primary text-white shadow">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="mb-1 opacity-75">Total Requests</h6>
-                                <h3 class="mb-0">{{ total|default(0) }}</h3>
-                            </div>
-                            <div class="progress-ring text-white">
-                                <svg width="80" height="80">
-                                    <circle class="bg" cx="40" cy="40" r="36"></circle>
-                                    <circle class="fg" cx="40" cy="40" r="36" stroke-dashoffset="calc(251 - (251 * 0.85))"></circle>
-                                </svg>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-12 col-sm-6 col-xl-4">
-                <div class="card card-stat bg-warning text-dark shadow">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="mb-1 opacity-75">Pending</h6>
-                                <h3 class="mb-0">{{ pending|default(0) }}</h3>
-                            </div>
-                            <i class="bi bi-hourglass-split fs-1 opacity-75"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-12 col-sm-6 col-xl-4">
-                <div class="card card-stat bg-success text-white shadow">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="mb-1 opacity-75">Completed</h6>
-                                <h3 class="mb-0">{{ completed|default(0) }}</h3>
-                            </div>
-                            <i class="bi bi-check2-all fs-1 opacity-75"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        
 
         <!-- Chart + Recent Activity -->
-        <div class="row g-4">
-            <div class="col-lg-8">
-                <div class="card shadow border-0 rounded-4 h-100">
-                    <div class="card-header bg-white border-0 pt-4 pb-0">
-                        <h5 class="mb-0">Request Trends</h5>
-                        <small class="text-muted">Monthly overview • Last 6 months</small>
+         <!-- Welcome Section -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="room-info d-flex align-items-center justify-content-between">
+                    <div>
+                        <h3 class="mb-2">Welcome back, {{ current_user.full_name }}! 👋</h3>
+                    
                     </div>
-                    <div class="card-body">
-                        <div class="chart-container">
-                            <canvas id="myChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-lg-4">
-                <div class="card shadow border-0 rounded-4 h-100">
-                    <div class="card-header bg-white border-0 pt-4 pb-0">
-                        <h5 class="mb-0">Recent Activity</h5>
-                    </div>
-                    <div class="card-body">
-                        <ul class="list-group list-group-flush">
-                            <li class="list-group-item px-0 py-3">
-                                <div class="d-flex">
-                                    <div class="bg-success-subtle text-success rounded-circle p-3 me-3"><i class="bi bi-check2"></i></div>
-                                    <div>
-                                        <strong>Request #238</strong> completed<br>
-                                        <small class="text-muted">2 min ago</small>
-                                    </div>
-                                </div>
-                            </li>
-                            <li class="list-group-item px-0 py-3">
-                                <div class="d-flex">
-                                    <div class="bg-warning-subtle text-warning rounded-circle p-3 me-3"><i class="bi bi-person-plus"></i></div>
-                                    <div>
-                                        <strong>New user</strong> registered<br>
-                                        <small class="text-muted">15 min ago</small>
-                                    </div>
-                                </div>
-                            </li>
-                            <!-- Add more dynamically via Jinja loop later -->
-                        </ul>
+                    <div class="text-end">
+                        <div class="display-6">{{ now.strftime('%B %d, %Y') if now else '' }}</div>
+                        <small class="opacity-75">Last login: Today</small>
                     </div>
                 </div>
             </div>
         </div>
+        
     </main>
 </div>
 
