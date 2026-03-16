@@ -4,3 +4,4 @@ flask-sqlalchemy
 flask-login
 flask-mail
 werkzeug
+flask-wtf==1.2.2
