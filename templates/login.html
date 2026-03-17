@@ -31,7 +31,9 @@
         <div class="mb-4">
           <div class="d-flex justify-content-between">
             <label class="form-label fw-medium">Password</label>
-            <a href="#" class="forgot-link">Forgot password?</a>
+            <div class="text-center mt-3">
+    <a href="{{ url_for('forgot_password') }}" class="text-muted">Forgot Password?</a>
+</div>
           </div>
           <div class="input-group">
             <span class="input-group-text"><i class="fas fa-lock"></i></span>

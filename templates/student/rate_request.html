@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}Rate Request #{{ request.id }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Rate Maintenance Request #{{ request.id }}</h2>
+    <p><strong>Room:</strong> {{ request.room_number }}</p>
+    <p><strong>Category:</strong> {{ request.category|title }}</p>
+    <p><strong>Description:</strong> {{ request.description }}</p>
+    <hr>
+
+    <form method="POST">
+        <div class="mb-3">
+            <label class="form-label fw-bold">Your Rating (1–5 stars)</label>
+            <select name="rating" class="form-select w-auto" required>
+                <option value="">Select...</option>
+                <option value="5">5 - Excellent</option>
+                <option value="4">4 - Good</option>
+                <option value="3">3 - Average</option>
+                <option value="2">2 - Poor</option>
+                <option value="1">1 - Very Poor</option>
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label fw-bold">Comment (optional)</label>
+            <textarea name="comment" class="form-control" rows="4" placeholder="Tell us about your experience..."></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Submit Rating</button>
+        <a href="{{ url_for('my_requests') }}" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+{% endblock %}

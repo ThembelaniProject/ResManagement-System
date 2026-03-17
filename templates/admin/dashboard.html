@@ -101,7 +101,8 @@
                 </a>
             </li>
             <li class="nav-item">
-                     <a class="nav-link text-white-75 d-flex align-items-center" href="{{ url_for('users') }}">                    <i class="bi bi-people fs-4 me-3"></i>
+                <a class="nav-link text-white-75 d-flex align-items-center" href="{{ url_for('users') }}" ata-bs-dismiss="offcanvas">
+                    <i class="bi bi-people fs-4 me-3"></i>
                     <span class="sidebar-text">Users</span>
                 </a>
             </li>
@@ -370,6 +371,50 @@ document.addEventListener('DOMContentLoaded', () => {
             },
             animation: { duration: 1800, easing: 'easeOutQuart' }
         }
+    });
+});
+
+
+document.querySelectorAll('.notification-link').forEach(link => {
+    link.addEventListener('click', function(e) {
+        const notifId = this.dataset.notifId;
+        if (notifId) {
+            fetch(`/notifications/mark-read/${notifId}`, { method: 'POST' })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        this.classList.remove('bg-light', 'fw-bold');
+                    }
+                });
+        }
+    });
+});
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('#sidebar .nav-link').forEach(link => {
+        link.addEventListener('click', function(e) {
+            const href = this.getAttribute('href');
+            
+            // Skip if not a real navigation link
+            if (!href || href === '#' || href.startsWith('javascript:')) {
+                return;
+            }
+
+            // Try to close the offcanvas (mobile only)
+            const sidebarEl = document.getElementById('sidebar');
+            
+            // Bootstrap might have added .offcanvas class dynamically in some cases
+            if (sidebarEl.classList.contains('offcanvas') || window.innerWidth < 992) {
+                const offcanvas = bootstrap.Offcanvas.getOrCreateInstance(sidebarEl);
+                if (offcanvas) {
+                    // Tiny delay often helps Safari/Android finish the click navigation
+                    setTimeout(() => {
+                        offcanvas.hide();
+                    }, 100);
+                }
+            }
+        });
     });
 });
 </script>
