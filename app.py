@@ -38,25 +38,30 @@ class AddUserForm(FlaskForm):
 # ────────────────────────────────────────────────
 app = Flask(__name__)
 
-scheduler = BackgroundScheduler()
-scheduler.start()
-atexit.register(lambda: scheduler.shutdown())
+# ──── Base directory & production-friendly paths ────
+basedir = os.path.abspath(os.path.dirname(__file__))
 
-UPLOAD_FOLDER = os.path.join('static', 'uploads')
-app.config['SECRET_KEY'] = 'secretkey'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///maintenance.db'
+# Create necessary folders
+instance_dir = os.path.join(basedir, 'instance')
+upload_dir   = os.path.join(basedir, 'static', 'uploads')
+os.makedirs(instance_dir, exist_ok=True)
+os.makedirs(upload_dir,   exist_ok=True)
+
+# Configuration
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-me-in-production'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(instance_dir, 'maintenance.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
+app.config['UPLOAD_FOLDER'] = upload_dir
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB
 
-# Email
-app.config['MAIL_SERVER'] = 'smtp.gmail.com'
-app.config['MAIL_PORT'] = 587
-app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = 'thembelanibuthelezi64@gmail.com'
-app.config['MAIL_PASSWORD'] = 'iuuocjnhsocusnrz'
+# Email configuration (use environment variables in production!)
+app.config['MAIL_SERVER']   = 'smtp.gmail.com'
+app.config['MAIL_PORT']     = 587
+app.config['MAIL_USE_TLS']  = True
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME') or 'thembelanibuthelezi64@gmail.com'
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD') or 'iuuocjnhsocusnrz'
 
-db = SQLAlchemy(app)
+db   = SQLAlchemy(app)
 mail = Mail(app)
 
 login_manager = LoginManager(app)
@@ -68,7 +73,14 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # ────────────────────────────────────────────────
-# Notifications context & routes
+# Background scheduler
+# ────────────────────────────────────────────────
+scheduler = BackgroundScheduler()
+scheduler.start()
+atexit.register(lambda: scheduler.shutdown())
+
+# ────────────────────────────────────────────────
+# Notifications context processor
 # ────────────────────────────────────────────────
 @app.context_processor
 def inject_notifications():
