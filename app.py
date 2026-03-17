@@ -61,6 +61,26 @@ app.config['MAIL_PASSWORD'] = 'iuuocjnhsocusnrz'
 app.config['SECURITY_PASSWORD_SALT'] = 'your-password-salt-change-this-in-production'
 app.config['RESET_TOKEN_EXPIRES'] = 3600  # Token valid for 1 hour
 
+# Allowed file extensions for uploads
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'pdf'}
+
+def allowed_file(filename):
+    """
+    Check if the uploaded file has an allowed extension
+    Returns True if file extension is allowed, False otherwise
+    """
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS# Allowed file extensions for uploads
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'pdf'}
+
+def allowed_file(filename):
+    """
+    Check if the uploaded file has an allowed extension
+    Returns True if file extension is allowed, False otherwise
+    """
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+           
 # ================= INITIALIZE EXTENSIONS =================
 db = SQLAlchemy(app)
 mail = Mail(app)
