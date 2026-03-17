@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, url_for, request, flash, jsonify
+from flask import Flask, render_template, redirect, url_for, request, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user, UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -6,310 +6,110 @@ from flask_mail import Mail, Message
 from datetime import datetime
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SelectField, SubmitField
-from wtforms.validators import DataRequired, Email, Length, Optional
+from wtforms.validators import DataRequired, Email, Length, EqualTo
+from werkzeug.security import generate_password_hash
 from functools import wraps
-from apscheduler.schedulers.background import BackgroundScheduler
-from apscheduler.triggers.interval import IntervalTrigger
-from datetime import timedelta
-import atexit
-import os
-from werkzeug.utils import secure_filename
 
-# ────────────────────────────────────────────────
-# Forms
-# ────────────────────────────────────────────────
 class AddUserForm(FlaskForm):
-    full_name = StringField('Full Name', validators=[DataRequired(), Length(min=2, max=100)])
-    email = StringField('Email', validators=[DataRequired(), Email()])
-    password = PasswordField('Password', validators=[DataRequired(), Length(min=8)])
+    full_name = StringField(
+        'Full Name',
+        validators=[DataRequired(), Length(min=2, max=100)]
+    )
+    email = StringField(
+        'Email',
+        validators=[DataRequired(), Email()]
+    )
+    password = PasswordField(
+        'Password',
+        validators=[DataRequired(), Length(min=8)]
+    )
     role = SelectField(
         'Role',
-        choices=[('admin', 'Admin'), ('student', 'Student'),
-                 ('plumber', 'Plumber'), ('cleaner', 'Cleaner'),
-                 ('electrician', 'Electrician'), ('technician', 'Technician'),
-                 ('pest_controller', 'Pest Controller')],
+        choices=[('Admin', 'Admin'), ('Technician', 'Technician'), ('User', 'User')],
         validators=[DataRequired()]
     )
-    room_number = StringField('Room Number', validators=[Optional(), Length(max=20)])
     submit = SubmitField('Create User')
-
-# ────────────────────────────────────────────────
-# App setup
-# ────────────────────────────────────────────────
 app = Flask(__name__)
 
-# ──── Base directory & production-friendly paths ────
-basedir = os.path.abspath(os.path.dirname(__file__))
-
-# Create necessary folders
-instance_dir = os.path.join(basedir, 'instance')
-upload_dir   = os.path.join(basedir, 'static', 'uploads')
-os.makedirs(instance_dir, exist_ok=True)
-os.makedirs(upload_dir,   exist_ok=True)
-
-# Configuration
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-me-in-production'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(instance_dir, 'maintenance.db')
+app.config['SECRET_KEY'] = 'secretkey'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///maintenance.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['UPLOAD_FOLDER'] = upload_dir
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB
 
-# Email configuration (use environment variables in production!)
-app.config['MAIL_SERVER']   = 'smtp.gmail.com'
-app.config['MAIL_PORT']     = 587
-app.config['MAIL_USE_TLS']  = True
-app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME') or 'thembelanibuthelezi64@gmail.com'
-app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD') or 'iuuocjnhsocusnrz'
+# Email configuration (Use your Gmail credentials)
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = 'your_email@gmail.com'
+app.config['MAIL_PASSWORD'] = 'your_app_password'
 
-db   = SQLAlchemy(app)
+db = SQLAlchemy(app)
 mail = Mail(app)
 
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'pdf'}
+# ================= MODELS =================
 
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-# ────────────────────────────────────────────────
-# Background scheduler
-# ────────────────────────────────────────────────
-scheduler = BackgroundScheduler()
-scheduler.start()
-atexit.register(lambda: scheduler.shutdown())
-
-# ────────────────────────────────────────────────
-# Notifications context processor
-# ────────────────────────────────────────────────
-@app.context_processor
-def inject_notifications():
-    if not current_user.is_authenticated:
-        return {'unread_count': 0, 'has_unread': False}
-    unread_count = current_user.unread_notifications_count()
-    return {'unread_count': unread_count, 'has_unread': unread_count > 0}
-
-@app.route('/notifications/mark-read/<int:notif_id>', methods=['POST'])
-@login_required
-def mark_read(notif_id):
-    notif = Notification.query.get_or_404(notif_id)
-    if notif.user_id != current_user.id:
-        return jsonify({'success': False}), 403
-    if not notif.is_read:
-        notif.is_read = True
-        db.session.commit()
-    return jsonify({'success': True})
-
-@app.route('/notifications/unread-count')
-@login_required
-def unread_count():
-    return jsonify({'unread': current_user.unread_notifications_count()})
-
-@app.route('/notifications')
-@login_required
-def notifications_all():
-    notifs = current_user.notifications.order_by(Notification.created_at.desc()).all()
-    return render_template('notifications_all.html', notifications=notifs)
-
-# ────────────────────────────────────────────────
-# Models
-# ────────────────────────────────────────────────
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     full_name = db.Column(db.String(100))
     email = db.Column(db.String(120), unique=True)
     password_hash = db.Column(db.String(200))
     role = db.Column(db.String(20))
-    room_number = db.Column(db.String(20), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    def unread_notifications_count(self):
-        return self.notifications.filter_by(is_read=False).count()
-
-    def get_notifications(self, limit=12):
-        return self.notifications.order_by(Notification.created_at.desc()).limit(limit).all()
 
 class Request(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer)
-    staff_id = db.Column(db.Integer, nullable=True)
+    user_id = db.Column(db.Integer)               # ← should link to logged-in user
+    technician_id = db.Column(db.Integer, nullable=True)
     room_number = db.Column(db.String(20), nullable=False)
-    category = db.Column(db.String(50))
+    category    = db.Column(db.String(50))        # ← added
     description = db.Column(db.Text, nullable=False)
-    priority = db.Column(db.String(20), nullable=False)
-    status = db.Column(db.String(20), default="Pending")
-    photo_path = db.Column(db.String(200), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    priority    = db.Column(db.String(20), nullable=False)
+    status      = db.Column(db.String(20), default="Pending")
+    created_at  = db.Column(db.DateTime, default=datetime.utcnow)
 
-class Notification(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    message = db.Column(db.String(255), nullable=False)
-    type = db.Column(db.String(30), default='request', nullable=False)
-    related_request_id = db.Column(db.Integer, db.ForeignKey('request.id'), nullable=True)
-    related_object_id = db.Column(db.Integer, nullable=True)
-    is_read = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    def __repr__(self):
+        return f"<Request {self.id} - {self.room_number}>"
 
-    user = db.relationship('User', backref=db.backref('notifications', lazy='dynamic', cascade="all, delete-orphan"))
-    request = db.relationship('Request', backref='notifications', lazy=True)
 
-def check_and_create_reminder_notifications():
-    with app.app_context():
-        overdue = Request.query.filter(
-            Request.status == "Pending",
-            Request.created_at <= datetime.utcnow() - timedelta(hours=48)
-        ).all()
 
-        for req in overdue:
-            student = User.query.get(req.user_id)
-            if not student: continue
-
-            recent_reminder = Notification.query.filter(
-                Notification.user_id == student.id,
-                Notification.type == 'reminder',
-                Notification.related_request_id == req.id,
-                Notification.created_at >= datetime.utcnow() - timedelta(hours=24)
-            ).first()
-
-            if recent_reminder: continue
-
-            message = f"Reminder: Your maintenance request #{req.id} (Room {req.room_number}) is still pending for over 2 days."
-            notif = Notification(
-                user_id=student.id,
-                message=message,
-                type='reminder',
-                related_request_id=req.id
-            )
-            db.session.add(notif)
-            db.session.commit()
-
-scheduler.add_job(
-    func=check_and_create_reminder_notifications,
-    trigger=IntervalTrigger(minutes=1),
-    id='maintenance_reminders',
-    replace_existing=True
-)
-
-# ────────────────────────────────────────────────
-# Decorators
-# ────────────────────────────────────────────────
 def admin_required(f):
     @wraps(f)
-    def decorated(*args, **kwargs):
+    def decorated_function(*args, **kwargs):
         if not current_user.is_authenticated:
-            flash("Please log in.", "warning")
-            return redirect(url_for('login'))
-        if current_user.role != 'admin':
-            flash("Admin access only.", "danger")
-            return redirect(url_for('dashboard'))
-        return f(*args, **kwargs)
-    return decorated
+            flash("Please log in to access this page.", "warning")
+            return redirect(url_for('login'))  # ← change 'login' to your actual login route name
 
-def staff_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if not current_user.is_authenticated:
-            flash("Please log in.", "warning")
-            return redirect(url_for('login'))
-        if current_user.role in ['admin', 'student']:
-            flash("Staff access only.", "danger")
-            return redirect(url_for('dashboard'))
-        return f(*args, **kwargs)
-    return decorated
+        # Adjust this condition to match how your User model stores roles
+        if current_user.role.lower() not in ['admin', 'administrator']:
+            flash("You do not have permission to access this page.", "danger")
+            return redirect(url_for('dashboard'))  # ← or wherever you want to send non-admins
 
-# ────────────────────────────────────────────────
-# Template filters
-# ────────────────────────────────────────────────
+        return f(*args, **kwargs)
+    return decorated_function
+
+# Custom filter
 @app.template_filter('format_datetime')
 def format_datetime(value, format='%Y-%m-%d %H:%M'):
     if value is None:
         value = datetime.now()
     return value.strftime(format)
 
-# ────────────────────────────────────────────────
-# Email helpers (unchanged)
-# ────────────────────────────────────────────────
-def get_admin_emails():
-    admins = User.query.filter(User.role.ilike('%admin%')).all()
-    return [a.email for a in admins if a.email]
+# ================= LOGIN =================
 
-def notify_admins_new_request(new_request):
-    admin_emails = get_admin_emails()
-    if not admin_emails: return
-
-    student = current_user
-    subject = f"New Maintenance Request #{new_request.id} — Room {new_request.room_number}"
-
-    html_content = render_template(
-        'emails/new_request_notification.html',
-        request_id=new_request.id,
-        submitted_by_name=student.full_name,
-        submitted_by_email=student.email,
-        room_number=new_request.room_number,
-        category=new_request.category,
-        priority=new_request.priority,
-        description=new_request.description,
-        status=new_request.status,
-        created_at=new_request.created_at.strftime('%Y-%m-%d %H:%M UTC'),
-        has_photo=bool(new_request.photo_path),
-        review_url="http://127.0.0.1:5000/requests"
-    )
-
-    try:
-        msg = Message(subject, sender=app.config['MAIL_USERNAME'], recipients=admin_emails,
-                      body="New maintenance request submitted.", html=html_content)
-
-        if new_request.photo_path:
-            full_path = os.path.join('static', new_request.photo_path)
-            if os.path.exists(full_path):
-                with open(full_path, 'rb') as f:
-                    data = f.read()
-                ext = new_request.photo_path.rsplit('.', 1)[-1].lower()
-                mime = f"image/{'jpeg' if ext in ('jpg','jpeg') else ext}"
-                msg.attach(filename=f"photo.{ext}", content_type=mime, data=data)
-
-        mail.send(msg)
-        print(f"Notification sent for request #{new_request.id}")
-    except Exception as e:
-        print(f"Email failed: {e}")
-
-def create_notification(user_id, message, notif_type='request', related_request_id=None):
-    notif = Notification(
-        user_id=user_id,
-        message=message,
-        type=notif_type,
-        related_request_id=related_request_id
-    )
-    db.session.add(notif)
-
-def notify_user_email(user, subject, html_template, **kwargs):
-    try:
-        html = render_template(html_template, **kwargs)
-        msg = Message(subject, sender=app.config['MAIL_USERNAME'], recipients=[user.email],
-                      body="Automated update.", html=html)
-        mail.send(msg)
-    except Exception as e:
-        print(f"→ Email failed for {user.email}: {e}")
-
-# ────────────────────────────────────────────────
-# Login / Logout
-# ────────────────────────────────────────────────
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-@app.route("/", methods=["GET", "POST"])
+@app.route("/", methods=["GET","POST"])
 def login():
     if request.method == "POST":
-        email = request.form.get("email")
-        password = request.form.get("password")
-        user = User.query.filter_by(email=email).first()
-        if user and check_password_hash(user.password_hash, password):
+        user = User.query.filter_by(email=request.form["email"]).first()
+        if user and check_password_hash(user.password_hash, request.form["password"]):
             login_user(user)
             return redirect(url_for("dashboard"))
-        flash("Email or password incorrect.", "danger")
+        flash("Invalid credentials")
     return render_template("login.html")
 
 @app.route("/logout")
@@ -318,167 +118,134 @@ def logout():
     logout_user()
     return redirect(url_for("login"))
 
-# ────────────────────────────────────────────────
-# Admin – Register user
-# ────────────────────────────────────────────────
 @app.route('/admin/register', methods=['GET', 'POST'])
 @login_required
-@admin_required
 def register():
+    # Normalize role comparison (safer)
+    if current_user.role.lower() != 'admin':
+        flash('Only admins can create new users.', 'danger')
+        return redirect(url_for('dashboard'))
+    
     if request.method == 'POST':
         full_name = request.form.get('full_name', '').strip()
-        email = request.form.get('email', '').strip().lower()
-        password = request.form.get('password', '')
-        role = request.form.get('role', '').strip().lower()
-        room_number = request.form.get('room_number', '').strip()
+        email     = request.form.get('email', '').strip().lower()
+        password  = request.form.get('password', '')
+        role      = request.form.get('role', 'user').strip().lower()  # normalize to lowercase
 
-        if not all([full_name, email, password, role]):
-            flash('Required fields missing.', 'danger')
-            return redirect(url_for('register'))
-
-        if role == 'student' and not room_number:
-            flash('Room number required for students.', 'danger')
+        if not full_name or not email or not password:
+            flash('All fields are required.', 'danger')
             return redirect(url_for('register'))
 
         if User.query.filter_by(email=email).first():
             flash('Email already registered.', 'danger')
             return redirect(url_for('register'))
-
+            
+        password_hash = generate_password_hash(password)
+        
         new_user = User(
             full_name=full_name,
             email=email,
-            password_hash=generate_password_hash(password),
-            role=role,
-            room_number=room_number if role == 'student' else None
+            password_hash=password_hash,
+            role=role,                    # stored as lowercase
+            created_at=datetime.utcnow()
         )
+        
         try:
             db.session.add(new_user)
             db.session.commit()
             flash('User created successfully!', 'success')
-            return redirect(url_for('users'))
+            return redirect(url_for('dashboard'))
         except Exception as e:
             db.session.rollback()
-            flash(f'Error: {str(e)}', 'danger')
+            flash(f'Error creating user: {str(e)}', 'danger')
+            return redirect(url_for('register'))
+    
+    # GET request → show form
+    return render_template('register.html')
 
-    return render_template('admin/register.html')
-
-# ────────────────────────────────────────────────
-# Dashboard (already good – kept as is)
-# ────────────────────────────────────────────────
+# ================= DASHBOARD =================
 @app.route("/dashboard")
 @login_required
 def dashboard():
-    notifications = current_user.get_notifications(limit=12)
-    unread_count = current_user.unread_notifications_count()
-    role = current_user.role.lower()
-
-    if role == "admin":
-        total_requests = Request.query.count()
-        pending_requests = Request.query.filter_by(status="Pending").count()
-        in_progress = Request.query.filter_by(status="In Progress").count()
+    if current_user.role == "Admin":
+        requests = Request.query.all()
+        total = Request.query.count()
+        pending = Request.query.filter_by(status="Pending").count()
         completed = Request.query.filter_by(status="Completed").count()
-        recent_requests = Request.query.order_by(Request.created_at.desc()).limit(10).all()
-        categories = {cat: Request.query.filter_by(category=cat).count()
-                      for cat in ['plumber', 'cleaner', 'electrician', 'technician', 'pest_controller']}
-        return render_template("admin/dashboard.html", **locals())
 
-    elif role == "student":
-        requests = Request.query.filter_by(user_id=current_user.id)\
-                               .order_by(Request.created_at.desc()).all()
-        pending_count = Request.query.filter_by(user_id=current_user.id, status="Pending").count()
-        in_progress_count = Request.query.filter_by(user_id=current_user.id, status="In Progress").count()
-        completed_count = Request.query.filter_by(user_id=current_user.id, status="Completed").count()
-        return render_template("student/dashboard.html", **locals())
+        return render_template("admin/dashboard.html",
+                               requests=requests,
+                               total=total,
+                               pending=pending,
+                               completed=completed)
 
-    elif role in ['technician', 'plumber', 'cleaner', 'electrician', 'pest_controller']:
-        requests = Request.query.filter_by(staff_id=current_user.id)\
-                               .order_by(Request.created_at.desc()).all()
-        pending_count = Request.query.filter_by(staff_id=current_user.id, status="Pending").count()
-        in_progress_count = Request.query.filter_by(staff_id=current_user.id, status="In Progress").count()
-        completed_count = Request.query.filter_by(staff_id=current_user.id, status="Completed").count()
-        role_display = current_user.role.replace('_', ' ').title()
-        return render_template("staff/dashboard.html", **locals())
+    elif current_user.role == "Student":
+        requests = Request.query.filter_by(user_id=current_user.id).all()
+        return render_template("student_dashboard.html",
+                               requests=requests)
+    elif current_user.role == "Technician":
+        requests = Request.query.filter_by(technician_id=current_user.id)\
+                                .order_by(Request.created_at.desc()).all()
+        
+        assigned_count    = Request.query.filter_by(technician_id=current_user.id, status="Assigned").count()
+        in_progress_count = Request.query.filter_by(technician_id=current_user.id, status="In Progress").count()
+        completed_count   = Request.query.filter_by(technician_id=current_user.id, status="Completed").count()
+
+        return render_template("technician_dashboard.html",
+                               requests=requests,
+                               active_page="dashboard",
+                               current_user=current_user,
+                               assigned_count=assigned_count,
+                               in_progress_count=in_progress_count,
+                               completed_count=completed_count)
 
     else:
-        flash("Unknown or invalid user role", "danger")
+        flash("Unknown role", "danger")
         return redirect(url_for("login"))
 
-# ────────────────────────────────────────────────
-# FIXED: Assignment (now works for all categories)
-# ────────────────────────────────────────────────
-@app.route("/assign/<int:req_id>", methods=["POST"])
+
+@app.route("/update_status/<int:request_id>", methods=["POST"])
 @login_required
-@admin_required
-def assign(req_id):
-    req = Request.query.get_or_404(req_id)
+def update_status(request_id):
+    req = Request.query.get_or_404(request_id)
 
-    if req.status == "Completed":
-        flash("Cannot assign to completed request.", "warning")
-        return redirect(url_for("requests"))
-
-    staff_id_str = request.form.get("staff_id")
-    if not staff_id_str:
-        flash("No staff member selected.", "danger")
-        return redirect(url_for("requests"))
-
-    try:
-        staff_id = int(staff_id_str)
-    except ValueError:
-        flash("Invalid staff selection.", "danger")
-        return redirect(url_for("requests"))
-
-    staff = User.query.get(staff_id)
-    if not staff:
-        flash("Selected user not found.", "danger")
-        return redirect(url_for("requests"))
-
-    if staff.role.lower() != req.category.lower():
-        flash(f"Cannot assign: user is {staff.role}, request requires {req.category}", "danger")
-        return redirect(url_for("requests"))
-
-    old_staff_id = req.staff_id
-    req.staff_id = staff.id
-    req.status = "Assigned"
-
-    student = User.query.get(req.user_id)
-    if student:
-        create_notification(
-            student.id,
-            f"Your request #{req.id} ({req.room_number}) assigned to {staff.full_name} ({staff.role}).",
-            'assignment', req.id
-        )
-
-    create_notification(
-        staff.id,
-        f"Assigned request #{req.id} – {req.room_number} – {req.category} – Priority: {req.priority}",
-        'assignment', req.id
-    )
+    new_status = request.form.get("status")
+    req.status = new_status
 
     db.session.commit()
 
-    action = "Re-assigned" if old_staff_id else "Assigned"
-    flash(f"{action} to {staff.full_name} ({staff.role})", "success")
-    return redirect(url_for("requests"))
+    flash("Request status updated successfully", "success")
+    return redirect(url_for("technician_assigned_work"))
 
-# ────────────────────────────────────────────────
-# FIXED: Status update – supports all staff roles
-# ────────────────────────────────────────────────
-@app.route("/update_status/<int:req_id>", methods=["POST"])
+# ================= ASSIGN TECHNICIAN =================
+
+@app.route("/assign/<int:req_id>", methods=["POST"])
+@login_required
+def assign(req_id):
+    req = Request.query.get_or_404(req_id)
+    req.technician_id = request.form["technician_id"]
+    req.status = "Assigned"
+    db.session.commit()
+    flash("Technician assigned")
+    return redirect(url_for("dashboard"))
+
+# ================= UPDATE STATUS =================
+
+app.route("/update_status/<int:req_id>", methods=["POST"])
 @login_required
 def update_status(req_id):
-    allowed_roles = {'technician', 'plumber', 'cleaner', 'electrician', 'pest_controller'}
-    if current_user.role.lower() not in allowed_roles:
-        flash("Only maintenance staff can update status", "danger")
+    if current_user.role != "Technician":
+        flash("Only technicians can update status", "danger")
         return redirect(url_for("dashboard"))
 
     req = Request.query.get_or_404(req_id)
 
-    if req.staff_id != current_user.id:
+    if req.technician_id != current_user.id:
         flash("This task is not assigned to you", "danger")
         return redirect(url_for("dashboard"))
 
     new_status = request.form.get("status")
-    allowed = {"Assigned", "In Progress", "Completed"}
+    allowed = ["Assigned", "In Progress", "Completed"]
 
     if new_status in allowed:
         if req.status == "Completed" and new_status != "Completed":
@@ -490,35 +257,25 @@ def update_status(req_id):
     else:
         flash("Invalid status", "danger")
 
-    return redirect(url_for("staff_assigned_work"))
+    return redirect(url_for("technician_assigned_work"))
 
-# ────────────────────────────────────────────────
-# The rest of your application (unchanged routes)
-# ────────────────────────────────────────────────
+# ================= NEW REQUEST =================
 
-@app.route('/new_request', methods=['GET', 'POST'])
+@app.route('/new-request', methods=['GET', 'POST'])
 @login_required
 def new_request():
-    if current_user.role != "student":
+    if current_user.role != "Student":
         flash("Only students can submit requests.", "danger")
-        return redirect(url_for("my_requests"))
+        return redirect(url_for("dashboard"))
 
     if request.method == 'POST':
-        room_number = request.form.get('room_number', current_user.room_number)
-        category = request.form.get('category')
-        priority = request.form.get('priority')
+        room_number = request.form.get('room_number')
+        category    = request.form.get('category')
+        priority    = request.form.get('priority')
         description = request.form.get('description')
 
-        photo_path = None
-        if 'photo' in request.files:
-            file = request.files['photo']
-            if file and file.filename and allowed_file(file.filename):
-                filename = secure_filename(f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{file.filename}")
-                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-                photo_path = f"uploads/{filename}"
-
         if not all([room_number, category, priority, description]):
-            flash("Please fill in all required fields", "danger")
+            flash("Please fill in all fields", "danger")
             return redirect(url_for('new_request'))
 
         new_req = Request(
@@ -526,113 +283,184 @@ def new_request():
             room_number=room_number.strip(),
             category=category,
             priority=priority,
-            description=description.strip(),
-            photo_path=photo_path
+            description=description.strip()
         )
 
         try:
             db.session.add(new_req)
             db.session.commit()
-            notify_admins_new_request(new_req)
             flash("Maintenance request submitted successfully!", "success")
             return redirect(url_for('my_requests'))
         except Exception as e:
             db.session.rollback()
             flash(f"Error saving request: {str(e)}", "danger")
 
-    return render_template('student/new_request.html', default_room=current_user.room_number)
+    return render_template('student/new_request.html')
+
+# ================= MY REQUESTS =================
 
 @app.route('/my-requests')
 @login_required
 def my_requests():
-    if current_user.role != "student":
+    if current_user.role != "Student":
         flash("Unauthorized access.", "danger")
         return redirect(url_for("dashboard"))
 
-    page = request.args.get('page', 1, type=int)
-    per_page = 10
+    requests = Request.query.filter_by(user_id=current_user.id).order_by(Request.created_at.desc()).all()
+    return render_template('student/my_requests.html', requests=requests)
 
-    pagination = Request.query.filter_by(user_id=current_user.id)\
-                              .order_by(Request.created_at.desc())\
-                              .paginate(page=page, per_page=per_page)
-
-    requests = pagination.items
-    for req in requests:
-        if req.staff_id:
-            staff = User.query.get(req.staff_id)
-            req.staff_name = staff.full_name if staff else "Unknown"
-
-    return render_template('student/my_requests.html', requests=requests, pagination=pagination)
-
+# Make sure this route exists (from previous messages):
 @app.route("/requests")
 @login_required
-@admin_required
 def requests():
-    page = request.args.get('page', 1, type=int)
+    if current_user.role.lower() != "admin":
+        flash("Only admins can view all requests.", "danger")
+        return redirect(url_for("dashboard"))
+    
+    requests = Request.query.order_by(Request.created_at.desc()).all()
+    technicians = User.query.filter_by(role="Technician").all()
 
-    paginated_requests = Request.query.order_by(Request.created_at.desc()).paginate(
-        page=page, per_page=10, error_out=False
-    )
-
-    staff_by_category = {}
-    staff_roles = ['plumber', 'cleaner', 'electrician', 'technician', 'pest_controller']
-    for role in staff_roles:
-        staff_by_category[role] = User.query.filter_by(role=role).all()
-
-    for req in paginated_requests.items:
+    # ← Add this block
+    for req in requests:
         student = User.query.get(req.user_id)
         req.student_name = student.full_name if student else "Unknown Student"
-        req.student_room = student.room_number if student else "Unknown"
 
-        if req.staff_id:
-            staff = User.query.get(req.staff_id)
-            req.staff_name = staff.full_name if staff else "Unknown"
+        # Bonus: also add technician name (optional but useful)
+        if req.technician_id:
+            tech = User.query.get(req.technician_id)
+            req.technician_name = tech.full_name if tech else "Unknown Technician"
         else:
-            req.staff_name = "Not assigned"
+            req.technician_name = "Not assigned"
 
-    return render_template("admin/requests.html",
-                          requests=paginated_requests,
-                          staff_by_category=staff_by_category,
-                          User=User)
+    return render_template("admin/requests.html", 
+                           requests=requests, 
+                           technicians=technicians,
+                           User=User)
 
 @app.route("/users")
 @login_required
-@admin_required
 def users():
-    page = request.args.get('page', 1, type=int)
-    users = User.query.order_by(User.created_at.desc()).paginate(
-        page=page, per_page=10, error_out=False
-    )
+    if current_user.role.lower() != "admin":
+        flash("Only admins can view the users list.", "danger")
+        return redirect(url_for("dashboard"))
+    
+    users = User.query.order_by(User.created_at.desc()).all()
     return render_template("admin/users.html", users=users)
 
+# ================= EDIT REQUEST =================
+
+@app.route('/requests/<int:request_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_request(request_id):
+    if current_user.role != "Student":
+        flash("Only students can edit their requests.", "danger")
+        return redirect(url_for("dashboard"))
+
+    req = Request.query.get_or_404(request_id)
+
+    # Ownership check
+    if req.user_id != current_user.id:
+        flash("You can only edit your own requests.", "danger")
+        return redirect(url_for("my_requests"))
+
+    # Status protection
+    if req.status in ["Assigned", "Completed"]:
+        flash("This request can no longer be edited.", "warning")
+        return redirect(url_for("my_requests"))
+
+    if request.method == "POST":
+        room_number = request.form.get("room_number", "").strip()
+        category    = request.form.get("category", "").strip()
+        priority    = request.form.get("priority", "").strip()
+        description = request.form.get("description", "").strip()
+
+        if not all([room_number, category, priority, description]):
+            flash("All fields are required.", "danger")
+            return redirect(url_for("edit_request", request_id=request_id))
+
+        # Update fields
+        req.room_number  = room_number
+        req.category     = category
+        req.priority     = priority
+        req.description  = description
+        # Note: status, technician_id, created_at are NOT changed here
+
+        try:
+            db.session.commit()
+            flash("Request updated successfully!", "success")
+            return redirect(url_for("my_requests"))
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error updating request: {str(e)}", "danger")
+
+    # GET → show form with current values
+    return render_template(
+        "student/edit_request.html",
+        request=req,           # passing the object so fields can be pre-filled
+        current_user=current_user
+    )
+
+
+# ================= DELETE REQUEST =================
+
+@app.route('/requests/<int:request_id>/delete', methods=['POST'])
+@login_required
+def delete_request(request_id):
+    if current_user.role != "Student":
+        flash("Only students can delete their requests.", "danger")
+        return redirect(url_for("dashboard"))
+
+    req = Request.query.get_or_404(request_id)
+
+    # Ownership check
+    if req.user_id != current_user.id:
+        flash("You can only delete your own requests.", "danger")
+        return redirect(url_for("my_requests"))
+
+    # Status protection (same rule as edit)
+    if req.status in ["Assigned", "Completed"]:
+        flash("Cannot delete a request that has been assigned or completed.", "warning")
+        return redirect(url_for("my_requests"))
+
+    try:
+        db.session.delete(req)
+        db.session.commit()
+        flash("Request deleted successfully.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error deleting request: {str(e)}", "danger")
+
+    return redirect(url_for("my_requests"))
+
+
+# ================= EDIT REQUEST =================
 @app.route('/users/<int:user_id>/edit', methods=['GET', 'POST'])
 @login_required
-@admin_required
 def edit_user(user_id):
+    if current_user.role.lower() != 'admin':
+        flash("Only admins can edit users.", "danger")
+        return redirect(url_for('dashboard'))
+    
     user = User.query.get_or_404(user_id)
+    
     if user.id == current_user.id:
-        flash("Cannot edit your own account here.", "warning")
+        flash("You cannot edit your own account from here.", "warning")
         return redirect(url_for('users'))
-
+    
     if request.method == 'POST':
         full_name = request.form.get('full_name', '').strip()
-        role = request.form.get('role', '').strip().lower()
-        room_number = request.form.get('room_number', '').strip()
+        role = request.form.get('role', '').strip().title()  # Admin, Student, Technician
         new_password = request.form.get('new_password', '')
         confirm_password = request.form.get('confirm_password', '')
 
         if not full_name or not role:
-            flash("Full name and role required.", "danger")
-            return redirect(url_for('edit_user', user_id=user_id))
-
-        if role == 'student' and not room_number:
-            flash("Room number required for students.", "danger")
+            flash("Full name and role are required.", "danger")
             return redirect(url_for('edit_user', user_id=user_id))
 
         user.full_name = full_name
         user.role = role
-        user.room_number = room_number if role == 'student' else None
 
+        # Optional password change
         if new_password and confirm_password:
             if new_password == confirm_password:
                 user.password_hash = generate_password_hash(new_password)
@@ -641,159 +469,85 @@ def edit_user(user_id):
                 return redirect(url_for('edit_user', user_id=user_id))
 
         db.session.commit()
-        flash(f"User {user.full_name} updated.", "success")
+        flash(f"User {user.full_name} updated successfully.", "success")
         return redirect(url_for('users'))
 
     return render_template('admin/edit_user.html', user=user)
 
+# ================= DELETE REQUEST =================
 @app.route('/users/<int:user_id>/delete', methods=['POST'])
 @login_required
-@admin_required
 def delete_user(user_id):
+    if current_user.role.lower() != 'admin':
+        flash("Only admins can delete users.", "danger")
+        return redirect(url_for('users'))
+    
     user = User.query.get_or_404(user_id)
+    
     if user.id == current_user.id:
-        flash("Cannot delete your own account.", "danger")
+        flash("You cannot delete your own account.", "danger")
         return redirect(url_for('users'))
-
-    if user.role == 'admin' and User.query.filter_by(role='admin').count() <= 1:
-        flash("Cannot delete the last admin.", "danger")
+    
+    # Optional: prevent deleting last admin
+    if user.role.lower() == 'admin' and User.query.filter_by(role='Admin').count() <= 1:
+        flash("Cannot delete the last admin account.", "danger")
         return redirect(url_for('users'))
-
+    
     db.session.delete(user)
     db.session.commit()
+    
     flash(f"User {user.full_name} deleted.", "success")
     return redirect(url_for('users'))
 
-@app.route("/staff/assigned-work")
+# ================= Technician =================
+    
+# 2. Technician assigned work page
+@app.route("/technician/assigned-work")
 @login_required
-def staff_assigned_work():
-    if current_user.role in ['admin', 'student']:
+def technician_assigned_work():
+    if current_user.role != "Technician":
         flash("Access denied", "danger")
         return redirect(url_for("dashboard"))
 
-    requests = Request.query.filter_by(staff_id=current_user.id)\
-                           .order_by(Request.created_at.desc()).all()
+    requests = Request.query.filter_by(technician_id=current_user.id)\
+                            .order_by(Request.created_at.desc()).all()
 
-    for req in requests:
-        student = User.query.get(req.user_id)
-        req.student_name = student.full_name if student else "Unknown"
-        req.student_room = student.room_number if student else "Unknown"
+    return render_template("technician_dashboard.html",
+                           requests=requests,
+                           active_page="assigned",
+                           current_user=current_user)
 
-    return render_template("staff/assigned_work.html",
-                          requests=requests,
-                          role_display=current_user.role.replace('_', ' ').title(),
-                          current_user=current_user)
 
-@app.route('/requests/<int:request_id>/edit', methods=['GET', 'POST'])
-@login_required
-def edit_request(request_id):
-    if current_user.role != "student":
-        flash("Only students can edit requests.", "danger")
-        return redirect(url_for("dashboard"))
-
-    req = Request.query.get_or_404(request_id)
-    if req.user_id != current_user.id:
-        flash("You can only edit your own requests.", "danger")
-        return redirect(url_for("my_requests"))
-
-    if req.status in ["Assigned", "In Progress", "Completed"]:
-        flash("Cannot edit assigned/in-progress/completed requests.", "warning")
-        return redirect(url_for("my_requests"))
-
-    if request.method == "POST":
-        room_number = request.form.get("room_number", "").strip()
-        category = request.form.get("category", "").strip()
-        priority = request.form.get("priority", "").strip()
-        description = request.form.get("description", "").strip()
-
-        if not all([room_number, category, priority, description]):
-            flash("All fields required.", "danger")
-            return redirect(url_for("edit_request", request_id=request_id))
-
-        if 'photo' in request.files:
-            file = request.files['photo']
-            if file and file.filename and allowed_file(file.filename):
-                if req.photo_path:
-                    old_path = os.path.join('static', req.photo_path)
-                    if os.path.exists(old_path):
-                        os.remove(old_path)
-                filename = secure_filename(f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{file.filename}")
-                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-                req.photo_path = f"uploads/{filename}"
-
-        req.room_number = room_number
-        req.category = category
-        req.priority = priority
-        req.description = description
-
-        try:
-            db.session.commit()
-            flash("Request updated.", "success")
-            return redirect(url_for("my_requests"))
-        except Exception as e:
-            db.session.rollback()
-            flash(f"Update failed: {str(e)}", "danger")
-
-    return render_template("student/edit_request.html", request=req)
-
-@app.route('/requests/<int:request_id>/delete', methods=['POST'])
-@login_required
-def delete_request(request_id):
-    if current_user.role != "student":
-        flash("Only students can delete requests.", "danger")
-        return redirect(url_for("dashboard"))
-
-    req = Request.query.get_or_404(request_id)
-    if req.user_id != current_user.id:
-        flash("Can only delete own requests.", "danger")
-        return redirect(url_for("my_requests"))
-
-    if req.status in ["Assigned", "In Progress", "Completed"]:
-        flash("Cannot delete assigned/in-progress/completed requests.", "warning")
-        return redirect(url_for("my_requests"))
-
-    if req.photo_path:
-        photo_file = os.path.join('static', req.photo_path)
-        if os.path.exists(photo_file):
-            os.remove(photo_file)
-
-    try:
-        db.session.delete(req)
-        db.session.commit()
-        flash("Request deleted.", "success")
-    except Exception as e:
-        db.session.rollback()
-        flash(f"Delete failed: {str(e)}", "danger")
-
-    return redirect(url_for("my_requests"))
-
+# ================= adding a user =================
+# routes.py
 @app.route('/users/add', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def add_user():
     form = AddUserForm()
     if form.validate_on_submit():
-        if User.query.filter_by(email=form.email.data.lower()).first():
-            flash('Email already registered.', 'danger')
-            return render_template('admin/add_user.html', form=form)
+        # Check if email already exists
+        existing = User.query.filter_by(email=form.email.data.lower()).first()
+        if existing:
+            flash('This email is already registered.', 'danger')
+            return render_template('add_user.html', form=form)
 
-        if form.role.data == 'student' and not form.room_number.data:
-            flash('Room number required for students.', 'danger')
-            return render_template('admin/add_user.html', form=form)
+        hashed_pw = generate_password_hash(form.password.data)
 
         user = User(
-            full_name=form.full_name.data.strip(),
-            email=form.email.data.lower().strip(),
-            password_hash=generate_password_hash(form.password.data),
-            role=form.role.data,
-            room_number=form.room_number.data if form.role.data == 'student' else None
+            full_name = form.full_name.data.strip(),
+            email     = form.email.data.lower().strip(),
+            password_hash = hashed_pw,               # ← hashed!
+            role      = form.role.data
         )
         db.session.add(user)
         db.session.commit()
+
         flash('User created successfully!', 'success')
         return redirect(url_for('users'))
 
-    return render_template('admin/add_user.html', form=form)
+    return render_template('add_user.html', form=form)
+# ================= EMAIL NOTIFICATION =================
 
 def send_email(to, subject, body):
     msg = Message(subject, sender=app.config['MAIL_USERNAME'], recipients=[to])
@@ -807,53 +561,36 @@ def notify(req_id):
     user = User.query.get(req.user_id)
     send_email(user.email, "Maintenance Update",
                f"Your request #{req.id} status is {req.status}")
-    flash("Email notification sent")
+    flash("Email sent")
     return redirect(url_for("dashboard"))
 
-@app.route('/view-photo/<int:request_id>')
+# ================= CREATE REQUEST (Legacy - Redirect to New) =================
+
+@app.route("/create_request", methods=["POST"])
 @login_required
-def view_photo(request_id):
-    req = Request.query.get_or_404(request_id)
+def create_request():
+    if current_user.role != "Student":
+        return "Unauthorized"
+    # Redirect to new_request for consistency
+    return redirect(url_for("new_request"))
 
-    if current_user.role == 'student' and req.user_id != current_user.id:
-        flash("Access denied", "danger")
-        return redirect(url_for('dashboard'))
-
-    if current_user.role not in ['admin', 'student'] and req.staff_id != current_user.id:
-        flash("Access denied", "danger")
-        return redirect(url_for('dashboard'))
-
-    if not req.photo_path:
-        flash("No photo available", "warning")
-        return redirect(request.referrer or url_for('dashboard'))
-
-    return render_template('view_photo.html', request=req)
-
-# ────────────────────────────────────────────────
-# Run application
-# ────────────────────────────────────────────────
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
 
-        default_users = [
-            ("Admin User", "admin@gmail.com", "admin123", "admin", None),
-            ("Student User", "student@gmail.com", "student123", "student", "101A"),
-            ("Plumber User", "plumber@gmail.com", "plumber123", "plumber", None),
-            ("Cleaner User", "cleaner@gmail.com", "cleaner123", "cleaner", None),
-            ("Electrician User", "electrician@gmail.com", "electrician123", "electrician", None),
-            ("Technician User", "tech@gmail.com", "tech123", "technician", None),
-            ("Pest Controller User", "pest@gmail.com", "pest123", "pest_controller", None)
+        users = [
+            ("Admin User", "admin@gmail.com", "admin123", "Admin"),
+            ("Student User", "student@gmail.com", "student123", "Student"),
+            ("Technician User", "tech@gmail.com", "tech123", "Technician")
         ]
 
-        for name, email, pw, role, room in default_users:
+        for name, email, password, role in users:
             if not User.query.filter_by(email=email).first():
                 user = User(
                     full_name=name,
                     email=email,
-                    password_hash=generate_password_hash(pw),
-                    role=role,
-                    room_number=room
+                    password_hash=generate_password_hash(password),
+                    role=role
                 )
                 db.session.add(user)
 
