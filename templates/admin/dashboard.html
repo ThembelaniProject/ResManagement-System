@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en" data-bs-theme="light">
 <head>
@@ -101,8 +102,7 @@
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link text-white-75 d-flex align-items-center" href=""{{ url_for('users') }}">
-                    <i class="bi bi-people fs-4 me-3"></i>
+                     <a class="nav-link text-white-75 d-flex align-items-center" href="{{ url_for('users') }}">                    <i class="bi bi-people fs-4 me-3"></i>
                     <span class="sidebar-text">Users</span>
                 </a>
             </li>
@@ -127,6 +127,11 @@
         </ul>
     </div>
 </nav>
+
+<!-- Ntombi-->
+<a href="{{ url_for('weekly_report') }}">
+    View Weekly Report
+</a>
 
 <!-- Main Content -->
 <div class="main-content" id="mainContent">
@@ -198,7 +203,7 @@
             <h1 class="h2 mb-0">Overview</h1>
             <div class="btn-group btn-group-sm">
                 <button type="button" class="btn btn-outline-secondary">Today</button>
-                <button type="button" class="btn btn-outline-secondary">Week</button>
+                <a href="{{ url_for('weekly_report') }}" class="btn btn-outline-secondary">Week</a>
                 <button type="button" class="btn btn-outline-secondary active">Month</button>
             </div>
         </div>

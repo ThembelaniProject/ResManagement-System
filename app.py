@@ -3,7 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user, UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_mail import Mail, Message
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SelectField, SubmitField
 from wtforms.validators import DataRequired, Email, Length, EqualTo
@@ -117,6 +117,39 @@ def login():
 def logout():
     logout_user()
     return redirect(url_for("login"))
+@app.route("/admin/weekly-report")
+@login_required
+def weekly_report():
+
+    if current_user.role.lower() != "admin":
+        flash("Only admins can access this page.", "danger")
+        return redirect(url_for("dashboard"))
+
+    one_week_ago = datetime.utcnow() - timedelta(days=7)
+
+    weekly_requests = Request.query.filter(
+        Request.created_at >= one_week_ago
+    ).order_by(Request.created_at.desc()).all()
+
+    total = len(weekly_requests)
+
+    pending = Request.query.filter(
+        Request.created_at >= one_week_ago,
+        Request.status == "Pending"
+    ).count()
+
+    completed = Request.query.filter(
+        Request.created_at >= one_week_ago,
+        Request.status == "Completed"
+    ).count()
+
+    return render_template(
+        "admin/weekly_report.html",
+        requests=weekly_requests,
+        total=total,
+        pending=pending,
+        completed=completed
+    )
 
 @app.route('/admin/register', methods=['GET', 'POST'])
 @login_required
