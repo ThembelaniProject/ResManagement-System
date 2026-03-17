@@ -1,0 +1,4 @@
+{
+    "python-envs.defaultEnvManager": "ms-python.python:venv",
+    "vscode-as-git-mergetool.settingsAssistantOnStartup": false
+}
