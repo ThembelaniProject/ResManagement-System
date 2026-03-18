@@ -14,6 +14,9 @@ import atexit
 import os
 from werkzeug.utils import secure_filename
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
+import threading
+
+
 
 # ================= FORM CLASSES =================
 class AddUserForm(FlaskForm):
@@ -47,7 +50,7 @@ os.makedirs(upload_dir,   exist_ok=True)
 
 # Configuration
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-me-in-production'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(instance_dir, 'maintenance.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = upload_dir
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB
@@ -63,7 +66,7 @@ app.config['MAIL_PORT']     = 587
 app.config['MAIL_USE_TLS']  = True
 app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME') or 'thembelanibuthelezi64@gmail.com'
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD') or 'iuuocjnhsocusnrz'
-import os
+
 
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or 'mysecretkey123'
 app.config['SECURITY_PASSWORD_SALT'] = os.environ.get('SECURITY_PASSWORD_SALT') or 'mysalt123'
@@ -76,10 +79,17 @@ login_manager.login_view = 'login'
 
 # ================= SCHEDULER SETUP =================
 scheduler = BackgroundScheduler()
-scheduler.start()
-atexit.register(lambda: scheduler.shutdown())
 
+if not os.environ.get("RENDER"):
+    scheduler.start()
+    atexit.register(lambda: scheduler.shutdown())
 
+def send_async_email(app, msg):
+    with app.app_context():
+        try:
+            mail.send(msg)
+        except Exception as e:
+            app.logger.error(f"Email failed: {e}")
 # ────────────────────────────────────────────────
 # Notifications context processor
 # ────────────────────────────────────────────────
@@ -197,7 +207,7 @@ def rate_request(request_id):
                         )
                         if comment:
                             msg.body += f"\nComment: {comment}"
-                        mail.send(msg)
+                        threading.Thread(target=send_async_email, args=(app, msg)).start()
                     except Exception as email_err:
                         app.logger.warning(f"Failed to send rating email: {email_err}")
                         # silent fail - user doesn't need to know
@@ -410,7 +420,7 @@ This is an automated message, please do not reply.
     try:
         print(f"📧 Sending reset email to {to_email}")
         print(f"📧 Reset URL: {reset_url}")
-        mail.send(msg)
+        threading.Thread(target=send_async_email, args=(app, msg)).start()
         print(f"✅ Email sent successfully to {to_email}")
         return True
     except Exception as e:
@@ -557,7 +567,7 @@ def notify_admins_new_request(new_request):
 
         # Send email safely
         try:
-            mail.send(msg)
+            threading.Thread(target=send_async_email, args=(app, msg)).start()
             app.logger.info(f"Admin notification sent for request #{new_request.id}")
         except Exception as e:
             app.logger.warning(f"Failed to send email for request #{new_request.id}: {e}")
@@ -579,7 +589,7 @@ def notify_user_email(user, subject, html_template, **kwargs):
         html = render_template(html_template, **kwargs)
         msg = Message(subject, sender=app.config['MAIL_USERNAME'], recipients=[user.email],
                       body="Automated update.", html=html)
-        mail.send(msg)
+        threading.Thread(target=send_async_email, args=(app, msg)).start()
     except Exception as e:
         print(f"→ Email failed for {user.email}: {e}")
 
@@ -1087,7 +1097,7 @@ def add_user():
 def send_email(to, subject, body):
     msg = Message(subject, sender=app.config['MAIL_USERNAME'], recipients=[to])
     msg.body = body
-    mail.send(msg)
+    threading.Thread(target=send_async_email, args=(app, msg)).start()
 
 @app.route("/notify/<int:req_id>")
 @login_required
@@ -1128,7 +1138,7 @@ def test_email():
             recipients=[app.config['MAIL_USERNAME']],  # Send to yourself
             body="This is a test email to verify your email configuration is working correctly."
         )
-        mail.send(msg)
+        threading.Thread(target=send_async_email, args=(app, msg)).start()
         return """
         <html>
         <body style="font-family: Arial; padding: 20px;">
@@ -1241,13 +1251,7 @@ if __name__ == "__main__":
         db.create_all()
 
         default_users = [
-            ("Admin User", "admin@gmail.com", "admin123", "admin", None),
-            ("Student User", "student@gmail.com", "student123", "student", "101A"),
-            ("Plumber User", "plumber@gmail.com", "plumber123", "plumber", None),
-            ("Cleaner User", "cleaner@gmail.com", "cleaner123", "cleaner", None),
-            ("Electrician User", "electrician@gmail.com", "electrician123", "electrician", None),
-            ("Technician User", "tech@gmail.com", "tech123", "technician", None),
-            ("Pest Controller User", "pest@gmail.com", "pest123", "pest_controller", None)
+            ("Admin User", "thembelanibuthelezi64@gmail.com", "admin123", "admin", None),
         ]
 
         for name, email, pw, role, room in default_users:
@@ -1262,4 +1266,4 @@ if __name__ == "__main__":
                 db.session.add(user)
 
         db.session.commit()
-        app.run(debug=True)
+        app.run(debug=False)
