@@ -12,3 +12,4 @@ sqlalchemy==2.0.48
 streamlit==1.55.0              # already installed, but keep for explicitness
 python-dotenv
 gunicorn==23.0.0
+psycopg2-binary
