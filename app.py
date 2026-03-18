@@ -290,25 +290,42 @@ class Notification(db.Model):
 
     def __repr__(self):
         return f"<Notif {self.id} {self.type} for user {self.user_id}>"
+    
+    
+# ================= DEFAULT USERS =================
 def create_default_users():
+    """
+    Creates default users if they don't exist.
+    Currently adds one admin.
+    """
     default_users = [
+        # full_name, email, password, role, room_number
         ("Admin User", "thembelanibuthelezi64@gmail.com", "admin123", "admin", None),
     ]
 
-    for name, email, password, role, room in default_users:
+    for full_name, email, password, role, room in default_users:
+        email = email.lower().strip()
         existing_user = User.query.filter_by(email=email).first()
 
         if not existing_user:
             new_user = User(
-                name=name,
+                full_name=full_name.strip(),
                 email=email,
-                password=generate_password_hash(password),
-                role=role,
+                password_hash=generate_password_hash(password),
+                role=role.lower(),
                 room_number=room
             )
             db.session.add(new_user)
+            print(f"✅ Default user created: {full_name} ({email})")
+        else:
+            print(f"ℹ️ User already exists: {full_name} ({email})")
 
-    db.session.commit()
+    try:
+        db.session.commit()
+        print("✅ Default users committed to the database.")
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ Error creating default users: {e}")
 
 with app.app_context():
     db.create_all()
