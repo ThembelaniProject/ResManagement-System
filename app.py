@@ -52,12 +52,21 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = upload_dir
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB
 
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 # Email configuration (use environment variables in production!)
 app.config['MAIL_SERVER']   = 'smtp.gmail.com'
 app.config['MAIL_PORT']     = 587
 app.config['MAIL_USE_TLS']  = True
 app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME') or 'thembelanibuthelezi64@gmail.com'
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD') or 'iuuocjnhsocusnrz'
+import os
+
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or 'mysecretkey123'
+app.config['SECURITY_PASSWORD_SALT'] = os.environ.get('SECURITY_PASSWORD_SALT') or 'mysalt123'
 
 db   = SQLAlchemy(app)
 mail = Mail(app)
@@ -68,13 +77,8 @@ login_manager.login_view = 'login'
 # ================= SCHEDULER SETUP =================
 scheduler = BackgroundScheduler()
 scheduler.start()
-
-# ────────────────────────────────────────────────
-# Background scheduler
-# ────────────────────────────────────────────────
-scheduler = BackgroundScheduler()
-scheduler.start()
 atexit.register(lambda: scheduler.shutdown())
+
 
 # ────────────────────────────────────────────────
 # Notifications context processor
