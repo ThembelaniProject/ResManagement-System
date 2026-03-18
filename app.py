@@ -15,6 +15,8 @@ import os
 from werkzeug.utils import secure_filename
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
 import threading
+import traceback
+import logging
 
 
 
@@ -79,7 +81,16 @@ mail = Mail(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
+# Better logging for Render (captures to stdout)
+logging.basicConfig(level=logging.DEBUG)
+app.logger.setLevel(logging.DEBUG)
 
+# Catch-all 500 handler with traceback
+@app.errorhandler(500)
+def internal_error(error):
+    app.logger.error(f"500 error: {error}")
+    app.logger.error(traceback.format_exc())  # logs full stack trace
+    return "Internal Server Error - check Render logs for details", 500
 # ================= SCHEDULER SETUP =================
 scheduler = BackgroundScheduler()
 
