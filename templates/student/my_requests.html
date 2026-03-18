@@ -141,7 +141,22 @@
                         <td>
                             {% if req.category %}<span class="badge category-{{ req.category }}">{{ req.category|capitalize }}</span>{% endif %}
                         </td>
-                        <td>{{ req.description | truncate(40, True) }}</td>
+                        <td>{{ req.description | truncate(40, True) }}
+                            <!-- Insert rating right here, under the description -->
+    {% if req.status == "Completed" %}
+        <div class="mt-2">
+            {% if req.rating %}
+                <strong>Rated:</strong> {{ req.rating }} / 5
+                {% if req.rating_comment %}
+                    <br><small>{{ req.rating_comment }}</small>
+                {% endif %}
+            {% else %}
+                <a href="{{ url_for('rate_request', request_id=req.id) }}"
+                   class="btn btn-sm btn-outline-primary mt-1">Rate this job</a>
+            {% endif %}
+        </div>
+    {% endif %}
+                        </td>
                         <td>
                             {% if req.photo_path %}
                                 <img src="{{ url_for('static', filename=req.photo_path) }}" class="photo-thumbnail" onclick="showPhoto('{{ url_for('static', filename=req.photo_path) }}')" data-bs-toggle="modal" data-bs-target="#photoModal">

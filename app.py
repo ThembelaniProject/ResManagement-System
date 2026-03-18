@@ -3,21 +3,19 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user, UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_mail import Mail, Message
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SelectField, SubmitField
-from wtforms.validators import DataRequired, Email, Length, Optional
+from wtforms import StringField, PasswordField, SelectField, SubmitField 
+from wtforms.validators import DataRequired, Email, Length, EqualTo, Optional
 from functools import wraps
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
-from datetime import timedelta
 import atexit
 import os
 from werkzeug.utils import secure_filename
+from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
 
-# ────────────────────────────────────────────────
-# Forms
-# ────────────────────────────────────────────────
+# ================= FORM CLASSES =================
 class AddUserForm(FlaskForm):
     full_name = StringField('Full Name', validators=[DataRequired(), Length(min=2, max=100)])
     email = StringField('Email', validators=[DataRequired(), Email()])
@@ -63,14 +61,13 @@ app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD') or 'iuuocjnhsocusn
 
 db   = SQLAlchemy(app)
 mail = Mail(app)
-
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'pdf'}
 
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+# ================= SCHEDULER SETUP =================
+scheduler = BackgroundScheduler()
+scheduler.start()
 
 # ────────────────────────────────────────────────
 # Background scheduler
@@ -111,17 +108,129 @@ def notifications_all():
     notifs = current_user.notifications.order_by(Notification.created_at.desc()).all()
     return render_template('notifications_all.html', notifications=notifs)
 
+
+@app.route('/requests/<int:request_id>/rate', methods=['GET', 'POST'])
+@login_required
+def rate_request(request_id):
+    if current_user.role != "student":
+        flash("Only students can rate requests.", "danger")
+        return redirect(url_for("dashboard"))
+
+    req = Request.query.get_or_404(request_id)
+
+    # Security: only allow rating your own requests
+    if req.user_id != current_user.id:
+        flash("You can only rate your own requests.", "danger")
+        return redirect(url_for("my_requests"))
+
+    if req.status != "Completed":
+        flash("You can only rate completed requests.", "warning")
+        return redirect(url_for("my_requests"))
+
+    if req.rating is not None:
+        flash("You have already rated this request.", "info")
+        return redirect(url_for("my_requests"))
+
+    if request.method == "POST":
+        try:
+            rating_str = request.form.get("rating")
+            comment = request.form.get("comment", "").strip()
+
+            if not rating_str or not rating_str.isdigit():
+                flash("Please select a valid rating.", "danger")
+                return redirect(url_for("rate_request", request_id=request_id))
+
+            rating = int(rating_str)
+
+            if not 1 <= rating <= 5:
+                flash("Rating must be between 1 and 5 stars.", "danger")
+                return redirect(url_for("rate_request", request_id=request_id))
+
+            # Save rating
+            req.rating = rating
+            req.rating_comment = comment if comment else None
+            req.rated_at = datetime.utcnow()
+
+            # ────────────────────────────────────────────────
+            # Update staff average rating
+            # ────────────────────────────────────────────────
+            if req.staff_id:
+                staff = User.query.get(req.staff_id)
+                if staff:
+                    # Get all rated requests for this staff member
+                    rated_requests = Request.query.filter(
+                        Request.staff_id == staff.id,
+                        Request.rating.isnot(None)
+                    ).all()
+
+                    if rated_requests:
+                        total = sum(r.rating for r in rated_requests)
+                        count = len(rated_requests)
+                        staff.average_rating = round(total / count, 2)
+                        staff.rating_count = count
+                    else:
+                        staff.average_rating = 0.0
+                        staff.rating_count = 0
+
+                    db.session.add(staff)
+
+            db.session.commit()
+            flash("Thank you for your feedback!", "success")
+
+            # Optional: email notification to staff
+            if req.staff_id:
+                staff = User.query.get(req.staff_id)  # already queried earlier, but safe
+                if staff and staff.email:
+                    try:
+                        msg = Message(
+                            subject="New Rating Received",
+                            sender=app.config['MAIL_USERNAME'],
+                            recipients=[staff.email]
+                        )
+                        msg.body = (
+                            f"Your work on request #{req.id} was rated {rating}/5 "
+                            f"by the student."
+                        )
+                        if comment:
+                            msg.body += f"\nComment: {comment}"
+                        mail.send(msg)
+                    except Exception as email_err:
+                        app.logger.warning(f"Failed to send rating email: {email_err}")
+                        # silent fail - user doesn't need to know
+
+            return redirect(url_for("my_requests"))
+
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error saving rating: {str(e)}", "danger")
+            # In production: log the error properly
+            app.logger.error(f"Rating save failed for request {request_id}: {str(e)}")
+
+    # GET: show rating form
+    return render_template("student/rate_request.html", request=req)
 # ────────────────────────────────────────────────
 # Models
 # ────────────────────────────────────────────────
+
+
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     full_name = db.Column(db.String(100))
-    email = db.Column(db.String(120), unique=True)
     password_hash = db.Column(db.String(200))
+    email = db.Column(db.String(120), unique=True, nullable=False, index=True)
     role = db.Column(db.String(20))
     room_number = db.Column(db.String(20), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    # ─── NEW ──────────── (only meaningful for staff)
+    average_rating = db.Column(db.Float, default=0.0, nullable=False)
+    rating_count = db.Column(db.Integer, default=0, nullable=False)
+    # ───────────────────────────────────────────────
+    def update_average_rating(self):
+        if self.rating_count == 0:
+            self.average_rating = 0.0
+        else:
+            # We'll calculate from requests when needed, but store cached value
+            pass  # see route below for actual logic
 
     def unread_notifications_count(self):
         return self.notifications.filter_by(is_read=False).count()
@@ -139,6 +248,11 @@ class Request(db.Model):
     priority = db.Column(db.String(20), nullable=False)
     status = db.Column(db.String(20), default="Pending")
     photo_path = db.Column(db.String(200), nullable=True)
+    # ─── NEW ───────────────────────────────────────
+    rating = db.Column(db.Integer, nullable=True)             # 1–5
+    rating_comment = db.Column(db.Text, nullable=True)
+    rated_at = db.Column(db.DateTime, nullable=True)
+    # ───────────────────────────────────────────────
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -155,6 +269,152 @@ class Notification(db.Model):
     user = db.relationship('User', backref=db.backref('notifications', lazy='dynamic', cascade="all, delete-orphan"))
     request = db.relationship('Request', backref='notifications', lazy=True)
 
+    def __repr__(self):
+        return f"<Notif {self.id} {self.type} for user {self.user_id}>"
+
+# ================= PASSWORD RESET FUNCTIONS =================
+def generate_reset_token(email):
+    """Generate a password reset token"""
+    serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
+    token = serializer.dumps(email, salt=app.config['SECURITY_PASSWORD_SALT'])
+    print(f"🔑 Generated token for {email}: {token[:20]}...")
+    return token
+
+def verify_reset_token(token, expiration=3600):
+    """Verify reset token and return email"""
+    serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
+    try:
+        email = serializer.loads(
+            token,
+            salt=app.config['SECURITY_PASSWORD_SALT'],
+            max_age=expiration
+        )
+        print(f"✅ Token verified for email: {email}")
+        return email
+    except SignatureExpired:
+        print("❌ Token expired")
+        return None
+    except BadSignature:
+        print("❌ Invalid token signature")
+        return None
+    except Exception as e:
+        print(f"❌ Token verification error: {str(e)}")
+        return None
+
+def send_reset_email(to_email, reset_url, user_name):
+    """Send password reset email"""
+    subject = "Password Reset Request - Residence Maintenance System"
+    
+    html_body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <style>
+            body {{
+                font-family: Arial, sans-serif;
+                line-height: 1.6;
+                color: #333;
+            }}
+            .container {{
+                max-width: 600px;
+                margin: 0 auto;
+                padding: 20px;
+                border: 1px solid #ddd;
+                border-radius: 5px;
+            }}
+            .header {{
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 20px;
+                text-align: center;
+                border-radius: 5px 5px 0 0;
+            }}
+            .content {{
+                padding: 20px;
+            }}
+            .button {{
+                display: inline-block;
+                padding: 12px 30px;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                text-decoration: none;
+                border-radius: 5px;
+                margin: 20px 0;
+                font-weight: bold;
+            }}
+            .button:hover {{
+                background: linear-gradient(135deg, #5a6fd6 0%, #6a43a0 100%);
+            }}
+            .footer {{
+                text-align: center;
+                padding: 20px;
+                color: #777;
+                font-size: 12px;
+                border-top: 1px solid #ddd;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h2>Password Reset Request</h2>
+            </div>
+            <div class="content">
+                <p>Dear {user_name},</p>
+                <p>We received a request to reset your password for the Residence Maintenance System.</p>
+                <p>Click the button below to reset your password:</p>
+                <div style="text-align: center;">
+                    <a href="{reset_url}" class="button" style="color: white;">Reset Password</a>
+                </div>
+                <p>If the button doesn't work, copy and paste this link into your browser:</p>
+                <p style="word-break: break-all; color: #667eea; background: #f0f0f0; padding: 10px; border-radius: 5px;">{reset_url}</p>
+                <p><strong>This link is valid for 1 hour.</strong></p>
+                <p>If you didn't request a password reset, please ignore this email.</p>
+            </div>
+            <div class="footer">
+                <p>This is an automated message, please do not reply.</p>
+                <p>&copy; 2024 Residence Maintenance System</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    
+    text_body = f"""
+Dear {user_name},
+
+We received a request to reset your password for the Residence Maintenance System.
+
+Click the link below to reset your password:
+{reset_url}
+
+This link is valid for 1 hour.
+
+If you didn't request a password reset, please ignore this email.
+
+This is an automated message, please do not reply.
+    """
+    
+    msg = Message(
+        subject=subject,
+        sender=app.config['MAIL_USERNAME'],
+        recipients=[to_email],
+        body=text_body,
+        html=html_body
+    )
+    
+    try:
+        print(f"📧 Sending reset email to {to_email}")
+        print(f"📧 Reset URL: {reset_url}")
+        mail.send(msg)
+        print(f"✅ Email sent successfully to {to_email}")
+        return True
+    except Exception as e:
+        print(f"❌ Failed to send email: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return False
+# ================= NOTIFICATION FUNCTIONS =================
 def check_and_create_reminder_notifications():
     with app.app_context():
         overdue = Request.query.filter(
@@ -187,7 +447,7 @@ def check_and_create_reminder_notifications():
 
 scheduler.add_job(
     func=check_and_create_reminder_notifications,
-    trigger=IntervalTrigger(minutes=1),
+    trigger=IntervalTrigger(minutes=15),
     id='maintenance_reminders',
     replace_existing=True
 )
@@ -496,6 +756,7 @@ def update_status(req_id):
 # The rest of your application (unchanged routes)
 # ────────────────────────────────────────────────
 
+# ================= REQUEST ROUTES =================
 @app.route('/new_request', methods=['GET', 'POST'])
 @login_required
 def new_request():
@@ -508,7 +769,6 @@ def new_request():
         category = request.form.get('category')
         priority = request.form.get('priority')
         description = request.form.get('description')
-
         photo_path = None
         if 'photo' in request.files:
             file = request.files['photo']
@@ -573,7 +833,6 @@ def requests():
     paginated_requests = Request.query.order_by(Request.created_at.desc()).paginate(
         page=page, per_page=10, error_out=False
     )
-
     staff_by_category = {}
     staff_roles = ['plumber', 'cleaner', 'electrician', 'technician', 'pest_controller']
     for role in staff_roles:
@@ -814,7 +1073,6 @@ def notify(req_id):
 @login_required
 def view_photo(request_id):
     req = Request.query.get_or_404(request_id)
-
     if current_user.role == 'student' and req.user_id != current_user.id:
         flash("Access denied", "danger")
         return redirect(url_for('dashboard'))
@@ -828,7 +1086,123 @@ def view_photo(request_id):
         return redirect(request.referrer or url_for('dashboard'))
 
     return render_template('view_photo.html', request=req)
+# ================= TEST EMAIL ROUTE =================
+@app.route('/test-email')
+def test_email():
+    """Test route to verify email configuration"""
+    try:
+        # Try to send a test email to yourself
+        msg = Message(
+            subject="Test Email from Maintenance System",
+            sender=app.config['MAIL_USERNAME'],
+            recipients=[app.config['MAIL_USERNAME']],  # Send to yourself
+            body="This is a test email to verify your email configuration is working correctly."
+        )
+        mail.send(msg)
+        return """
+        <html>
+        <body style="font-family: Arial; padding: 20px;">
+            <h2 style="color: green;">✅ Email Test Successful!</h2>
+            <p>A test email has been sent to <strong>{}</strong>.</p>
+            <p>Check your inbox (and spam folder) to confirm.</p>
+            <p><a href="/">Return to Home</a></p>
+        </body>
+        </html>
+        """.format(app.config['MAIL_USERNAME'])
+    except Exception as e:
+        error_msg = str(e)
+        return f"""
+        <html>
+        <body style="font-family: Arial; padding: 20px;">
+            <h2 style="color: red;">❌ Email Test Failed</h2>
+            <p><strong>Error:</strong> {error_msg}</p>
+            <h3>Troubleshooting Steps:</h3>
+            <ol>
+                <li>Make sure you're using an App Password, not your regular Gmail password</li>
+                <li>Enable 2-Factor Authentication on your Google account</li>
+                <li>Generate a new App Password at: https://myaccount.google.com/apppasswords</li>
+                <li>Update MAIL_PASSWORD in your config with the 16-digit app password</li>
+                <li>Check if Google blocked the attempt: https://myaccount.google.com/security</li>
+            </ol>
+            <p><a href="/">Return to Home</a></p>
+        </body>
+        </html>
+        """
+# ================= PASSWORD RESET ROUTES =================
 
+@app.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip().lower()
+        
+        if not email:
+            flash('Please enter your email address.', 'warning')
+            return render_template('forgot_password.html')
+
+        user = User.query.filter_by(email=email).first()
+        
+        if not user:
+            # Still show success message for security (don't reveal if email exists)
+            flash('If an account with that email exists, you will receive a password reset link.', 'info')
+            return redirect(url_for('login'))
+
+        token = generate_reset_token(user.email)
+        reset_url = url_for('reset_password', token=token, _external=True)
+
+        success = send_reset_email(user.email, reset_url, user.full_name)
+        
+        if success:
+            flash('Password reset instructions have been sent to your email.', 'success')
+        else:
+            flash('Failed to send reset email. Please try again later or contact support.', 'danger')
+
+        return redirect(url_for('login'))
+
+    return render_template('forgot_password.html')
+
+
+@app.route('/reset-password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+
+    email = verify_reset_token(token)
+    
+    if not email:
+        flash('Invalid or expired reset link. Please request a new one.', 'danger')
+        return redirect(url_for('forgot_password'))
+
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        flash('Invalid reset link.', 'danger')
+        return redirect(url_for('login'))
+
+    if request.method == 'POST':
+        password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
+
+        if not password or not confirm_password:
+            flash('Please fill in both password fields.', 'warning')
+            return render_template('reset_password.html', token=token)
+
+        if password != confirm_password:
+            flash('Passwords do not match.', 'danger')
+            return render_template('reset_password.html', token=token)
+
+        if len(password) < 8:
+            flash('Password must be at least 8 characters long.', 'warning')
+            return render_template('reset_password.html', token=token)
+
+        user.password_hash = generate_password_hash(password)
+        db.session.commit()
+
+        flash('Your password has been updated successfully! Please log in.', 'success')
+        return redirect(url_for('login'))
+
+    return render_template('reset_password.html', token=token)
 # ────────────────────────────────────────────────
 # Run application
 # ────────────────────────────────────────────────
@@ -858,5 +1232,4 @@ if __name__ == "__main__":
                 db.session.add(user)
 
         db.session.commit()
-
-    app.run(debug=True)
+        app.run(debug=True)
