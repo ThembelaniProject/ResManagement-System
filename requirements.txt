@@ -13,3 +13,4 @@ streamlit==1.55.0              # already installed, but keep for explicitness
 python-dotenv
 gunicorn==23.0.0
 psycopg2-binary
+email-validator>=2.2.0
