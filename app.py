@@ -108,12 +108,12 @@ if not os.environ.get("RENDER"):
     scheduler.start()
     atexit.register(lambda: scheduler.shutdown())
 
-def send_async_email(app, msg):
-    with app.app_context():
-        try:
-            mail.send(msg)
-        except Exception as e:
-            app.logger.error(f"Email failed: {e}")
+def send_email_safe(msg):
+    try:
+        mail.send(msg)
+        print("✅ Email sent successfully")
+    except Exception as e:
+        print(f"❌ Email error: {e}")
 # ────────────────────────────────────────────────
 # Notifications context processor
 # ────────────────────────────────────────────────
@@ -231,7 +231,7 @@ def rate_request(request_id):
                         )
                         if comment:
                             msg.body += f"\nComment: {comment}"
-                        threading.Thread(target=send_async_email, args=(app, msg)).start()
+                        send_email_safe(msg)
                     except Exception as email_err:
                         app.logger.warning(f"Failed to send rating email: {email_err}")
                         # silent fail - user doesn't need to know
@@ -485,7 +485,7 @@ This is an automated message, please do not reply.
     try:
         print(f"📧 Sending reset email to {to_email}")
         print(f"📧 Reset URL: {reset_url}")
-        threading.Thread(target=send_async_email, args=(app, msg)).start()
+        send_email_safe(msg)
         print(f"✅ Email sent successfully to {to_email}")
         return True
     except Exception as e:
@@ -632,7 +632,7 @@ def notify_admins_new_request(new_request):
 
         # Send email safely
         try:
-            threading.Thread(target=send_async_email, args=(app, msg)).start()
+            send_email_safe(msg)
             app.logger.info(f"Admin notification sent for request #{new_request.id}")
         except Exception as e:
             app.logger.warning(f"Failed to send email for request #{new_request.id}: {e}")
@@ -654,7 +654,7 @@ def notify_user_email(user, subject, html_template, **kwargs):
         html = render_template(html_template, **kwargs)
         msg = Message(subject, sender=app.config['MAIL_USERNAME'], recipients=[user.email],
                       body="Automated update.", html=html)
-        threading.Thread(target=send_async_email, args=(app, msg)).start()
+        send_email_safe(msg)
     except Exception as e:
         print(f"→ Email failed for {user.email}: {e}")
 
@@ -1162,7 +1162,7 @@ def add_user():
 def send_email(to, subject, body):
     msg = Message(subject, sender=app.config['MAIL_USERNAME'], recipients=[to])
     msg.body = body
-    threading.Thread(target=send_async_email, args=(app, msg)).start()
+    send_email_safe(msg)
 
 @app.route("/notify/<int:req_id>")
 @login_required
@@ -1203,7 +1203,7 @@ def test_email():
             recipients=[app.config['MAIL_USERNAME']],  # Send to yourself
             body="This is a test email to verify your email configuration is working correctly."
         )
-        threading.Thread(target=send_async_email, args=(app, msg)).start()
+        send_email_safe(msg)
         return """
         <html>
         <body style="font-family: Arial; padding: 20px;">
