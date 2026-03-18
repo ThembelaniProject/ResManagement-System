@@ -290,8 +290,31 @@ class Notification(db.Model):
 
     def __repr__(self):
         return f"<Notif {self.id} {self.type} for user {self.user_id}>"
+def create_default_users():
+    default_users = [
+        ("Admin User", "thembelanibuthelezi64@gmail.com", "admin123", "admin", None),
+    ]
+
+    for name, email, password, role, room in default_users:
+        existing_user = User.query.filter_by(email=email).first()
+
+        if not existing_user:
+            new_user = User(
+                name=name,
+                email=email,
+                password=generate_password_hash(password),
+                role=role,
+                room_number=room
+            )
+            db.session.add(new_user)
+
+    db.session.commit()
+
 with app.app_context():
     db.create_all()
+    create_default_users()
+    
+    
 # ================= PASSWORD RESET FUNCTIONS =================
 def generate_reset_token(email):
     """Generate a password reset token"""
