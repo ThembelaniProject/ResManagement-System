@@ -59,6 +59,16 @@ app.config['SQLALCHEMY_DATABASE_URI'] = uri or 'sqlite:///maintenance.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = upload_dir
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB
+# ✅ ADD THIS BLOCK (VERY IMPORTANT)
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    "pool_pre_ping": True,
+    "pool_recycle": 280,
+    "pool_size": 5,
+    "max_overflow": 10,
+    "connect_args": {
+        "sslmode": "require"
+    }
+}
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
@@ -1301,24 +1311,3 @@ def reset_password(token):
 # ────────────────────────────────────────────────
 # Run application
 # ────────────────────────────────────────────────
-if __name__ == "__main__":
-    with app.app_context():
-        db.create_all()
-
-        default_users = [
-            ("Admin User", "thembelanibuthelezi64@gmail.com", "admin123", "admin", None),
-        ]
-
-        for name, email, pw, role, room in default_users:
-            if not User.query.filter_by(email=email).first():
-                user = User(
-                    full_name=name,
-                    email=email,
-                    password_hash=generate_password_hash(pw),
-                    role=role,
-                    room_number=room
-                )
-                db.session.add(user)
-
-        db.session.commit()
-        app.run(debug=False)
