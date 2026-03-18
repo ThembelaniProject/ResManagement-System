@@ -500,44 +500,70 @@ def get_admin_emails():
     return [a.email for a in admins if a.email]
 
 def notify_admins_new_request(new_request):
-    admin_emails = get_admin_emails()
-    if not admin_emails: return
-
-    student = current_user
-    subject = f"New Maintenance Request #{new_request.id} — Room {new_request.room_number}"
-
-    html_content = render_template(
-        'emails/new_request_notification.html',
-        request_id=new_request.id,
-        submitted_by_name=student.full_name,
-        submitted_by_email=student.email,
-        room_number=new_request.room_number,
-        category=new_request.category,
-        priority=new_request.priority,
-        description=new_request.description,
-        status=new_request.status,
-        created_at=new_request.created_at.strftime('%Y-%m-%d %H:%M UTC'),
-        has_photo=bool(new_request.photo_path),
-        review_url="http://127.0.0.1:5000/requests"
-    )
-
+    """
+    Safely notify all admins about a new maintenance request.
+    Handles missing templates, missing photo, and email errors gracefully.
+    """
     try:
-        msg = Message(subject, sender=app.config['MAIL_USERNAME'], recipients=admin_emails,
-                      body="New maintenance request submitted.", html=html_content)
+        admin_emails = get_admin_emails()
+        if not admin_emails:
+            app.logger.info(f"No admin emails found for request #{new_request.id}")
+            return
 
+        student = User.query.get(new_request.user_id)
+        if not student:
+            app.logger.warning(f"Student not found for request #{new_request.id}")
+            return
+
+        # Safe template rendering
+        try:
+            html_content = render_template(
+                'emails/new_request_notification.html',
+                request_id=new_request.id,
+                submitted_by_name=student.full_name,
+                submitted_by_email=student.email,
+                room_number=new_request.room_number,
+                category=new_request.category,
+                priority=new_request.priority,
+                description=new_request.description,
+                status=new_request.status,
+                created_at=new_request.created_at.strftime('%Y-%m-%d %H:%M UTC'),
+                has_photo=bool(new_request.photo_path),
+                review_url="https://resmanagement-system.onrender.com/new_request"
+            )
+        except Exception as e:
+            app.logger.warning(f"Template render failed for request #{new_request.id}: {e}")
+            html_content = f"New request #{new_request.id} submitted by {student.full_name}"
+
+        msg = Message(
+            subject=f"New Maintenance Request #{new_request.id} — Room {new_request.room_number}",
+            sender=app.config['MAIL_USERNAME'],
+            recipients=admin_emails,
+            body=f"New request #{new_request.id} submitted by {student.full_name}",
+            html=html_content
+        )
+
+        # Attach photo if exists and valid
         if new_request.photo_path:
-            full_path = os.path.join('static', new_request.photo_path)
+            full_path = os.path.join(app.root_path, 'static', new_request.photo_path)
             if os.path.exists(full_path):
-                with open(full_path, 'rb') as f:
-                    data = f.read()
-                ext = new_request.photo_path.rsplit('.', 1)[-1].lower()
-                mime = f"image/{'jpeg' if ext in ('jpg','jpeg') else ext}"
-                msg.attach(filename=f"photo.{ext}", content_type=mime, data=data)
+                try:
+                    ext = new_request.photo_path.rsplit('.', 1)[-1].lower()
+                    mime = f"image/{'jpeg' if ext in ('jpg','jpeg') else ext}"
+                    with open(full_path, 'rb') as f:
+                        msg.attach(filename=f"photo.{ext}", content_type=mime, data=f.read())
+                except Exception as e:
+                    app.logger.warning(f"Failed to attach photo for request #{new_request.id}: {e}")
 
-        mail.send(msg)
-        print(f"Notification sent for request #{new_request.id}")
+        # Send email safely
+        try:
+            mail.send(msg)
+            app.logger.info(f"Admin notification sent for request #{new_request.id}")
+        except Exception as e:
+            app.logger.warning(f"Failed to send email for request #{new_request.id}: {e}")
+
     except Exception as e:
-        print(f"Email failed: {e}")
+        app.logger.error(f"Unexpected error in notify_admins_new_request for request #{new_request.id}: {e}")
 
 def create_notification(user_id, message, notif_type='request', related_request_id=None):
     notif = Notification(
