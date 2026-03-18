@@ -49,8 +49,13 @@ os.makedirs(instance_dir, exist_ok=True)
 os.makedirs(upload_dir,   exist_ok=True)
 
 # Configuration
+uri = os.environ.get("DATABASE_URL")
+
+if uri and uri.startswith("postgres://"):
+    uri = uri.replace("postgres://", "postgresql://", 1)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = uri or 'sqlite:///maintenance.db'
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-me-in-production'
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = upload_dir
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB
@@ -285,7 +290,8 @@ class Notification(db.Model):
 
     def __repr__(self):
         return f"<Notif {self.id} {self.type} for user {self.user_id}>"
-
+with app.app_context():
+    db.create_all()
 # ================= PASSWORD RESET FUNCTIONS =================
 def generate_reset_token(email):
     """Generate a password reset token"""
