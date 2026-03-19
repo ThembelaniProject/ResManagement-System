@@ -905,20 +905,26 @@ def new_request():
         priority = request.form.get('priority')
         description = request.form.get('description')
         photo_path = None
-        if 'photo' in request.files:
-            file = request.files['photo']
-            if file and file.filename and allowed_file(file.filename):
+
+        # Handle photo upload
+        file = request.files.get('photo')
+        if file and file.filename:
+            if allowed_file(file.filename):
                 photo_url = upload_to_imgbb(file)
                 if photo_url:
-                    photo_path = photo_url  # store cloud URL
+                    photo_path = photo_url  # Store cloud URL only
                 else:
                     flash("Image upload failed. Try again.", "danger")
                     return redirect(url_for('new_request'))
+            else:
+                flash("Invalid file type. Only PNG, JPG, JPEG, GIF allowed.", "danger")
+                return redirect(url_for('new_request'))
 
         if not all([room_number, category, priority, description]):
             flash("Please fill in all required fields", "danger")
             return redirect(url_for('new_request'))
 
+        # Create request
         new_req = Request(
             user_id=current_user.id,
             room_number=room_number.strip(),
