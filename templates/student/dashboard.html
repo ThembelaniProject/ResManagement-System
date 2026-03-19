@@ -143,9 +143,15 @@
 <!-- Navbar -->
 <nav class="navbar navbar-expand navbar-dark bg-primary">
     <div class="container-fluid">
-        <a class="navbar-brand" href="#">
-            <i class="bi bi-tools me-2"></i>Res Maintenance System
-        </a>
+        <!-- Logo + Mobile toggle -->
+            <a class="navbar-brand d-flex align-items-center" href="#">
+                <!-- Replace with your actual logo path -->
+                <img src="{{ url_for('static', filename='images/Logo-p.png') }}" 
+                     alt="Admin Logo" class="me-2">
+                <!-- Optional text if you want brand name beside logo -->
+                <!-- <span class="fw-bold fs-5 d-none d-md-inline">YourApp</span> -->
+            </a>
+        
         <div class="ms-auto d-flex align-items-center">
             <div class="dropdown">
                 <a class="d-flex align-items-center text-decoration-none dropdown-toggle text-white" href="#" data-bs-toggle="dropdown">
@@ -168,6 +174,7 @@
 <div class="d-flex">
     <!-- Sidebar -->
     <div class="sidebar col-12 col-md-3 col-lg-2 p-0">
+        
         <ul class="nav flex-column pt-3">
             <li class="nav-item">
                 <a class="nav-link active" href="{{ url_for('dashboard') }}">

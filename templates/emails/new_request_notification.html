@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>New Maintenance Request #{{ request_id }}</title>
+  <title>New Maintenance Request</title>
   <style type="text/css">
     body {
       margin: 0;
@@ -11,6 +11,14 @@
       font-family: -apple-system, BlinkMacOSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       background-color: #f4f7fa;
       color: #333333;
+    }
+    .footer-logo {
+      max-width: 160px;           /* ← adjust size as needed */
+      height: auto;
+      margin-bottom: 20px;
+      display: block;
+      margin-left: auto;
+      margin-right: auto;
     }
     .container {
       max-width: 600px;
@@ -121,7 +129,7 @@
   <div class="container">
 
     <div class="header">
-      <h1>New Maintenance Request #{{ request_id }}</h1>
+      <h1>New Maintenance Request</h1>
     </div>
 
     <div class="content">
@@ -131,10 +139,6 @@
       </p>
 
       <table class="info-table">
-        <tr>
-          <th>Request ID</th>
-          <td>#{{ request_id }}</td>
-        </tr>
         <tr>
           <th>Submitted by</th>
           <td>{{ submitted_by_name }} <span style="color:#6b7280;">({{ submitted_by_email }})</span></td>
@@ -179,22 +183,32 @@
       <div class="photo-container">
         <img 
           src="cid:request_photo" 
-          alt="User-uploaded photo for maintenance request in room {{ room_number }}" 
           style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); display: block; margin: 0 auto;"
         />
-        <p class="photo-caption">
-          Attached photo showing the issue
-        </p>
+
       </div>
       {% endif %}
-
-      <div style="text-align: center; margin: 32px 0;">
-        <a href="{{ review_url }}" class="button">Review All Requests →</a>
-      </div>
 
     </div>
 
     <div class="footer">
+      <!-- Company Logo at the top of footer -->
+      <img src="{{ url_for('static', filename='images/Logo-p.png') }}" 
+        alt="Durban Heights Property Management Logo" 
+        class="footer-logo"
+      />
+      <div class="company-name">Hub Mantainance</div>
+      
+      <div class="company-details">
+        245 Berea road<br>
+        Durban North, KwaZulu-Natal 4051<br>
+        South Africa
+      </div>
+      
+      <div class="company-details">
+        Phone: +27 31 555 0123<br>
+        Email:hubmantainance@gmail.com
+      </div>
       <p>This is an automated message from the Maintenance Management System.</p>
       <p class="small">Please do not reply directly to this email.</p>
     </div>
