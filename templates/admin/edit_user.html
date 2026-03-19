@@ -67,10 +67,59 @@
             border-radius: 3px;
             transition: all 0.3s;
         }
+            /* ... existing styles ... */
+    
+    /* Responsive tabs */
+    @media (max-width: 767px) {
+        .nav-tabs {
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            overflow-y: hidden;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            padding-bottom: 5px;
+        }
+        
+        .nav-tabs::-webkit-scrollbar {
+            display: none;
+        }
+        
+        .nav-tabs .nav-item {
+            flex-shrink: 0;
+        }
+        
+        .nav-tabs .nav-link {
+            white-space: nowrap;
+            padding: 0.5rem 1rem;
+        }
+    }
+    
+    /* Responsive info card */
+    @media (max-width: 767px) {
+        .info-card .d-flex {
+            flex-direction: column;
+            text-align: center;
+        }
+        
+        .info-card .me-3 {
+            margin-right: 0 !important;
+            margin-bottom: 1rem;
+        }
+    }
+    
+    /* Password strength indicator */
+    .password-strength {
+        height: 4px;
+        margin-top: 5px;
+        border-radius: 2px;
+        transition: all 0.3s;
+    }
+    
         
         .weak { background-color: #dc3545; width: 33%; }
         .medium { background-color: #ffc107; width: 66%; }
         .strong { background-color: #28a745; width: 100%; }
+
     </style>
 </head>
 <body>

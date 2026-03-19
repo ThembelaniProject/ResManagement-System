@@ -50,6 +50,14 @@ UPLOAD_FOLDER = os.path.join('static', 'uploads')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
+# Add this function after your app configuration (around line 35-40)
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+
+def allowed_file(filename):
+    """Check if the uploaded file has an allowed extension"""
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 # Email
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
@@ -71,6 +79,8 @@ login_manager.login_view = 'login'
 # ================= SCHEDULER SETUP =================
 scheduler = BackgroundScheduler()
 scheduler.start()
+
+
 
 # ────────────────────────────────────────────────
 # Notifications context & routes
@@ -1199,6 +1209,25 @@ def reset_password(token):
         return redirect(url_for('login'))
 
     return render_template('reset_password.html', token=token)
+
+
+@app.route('/request/<int:request_id>')
+@login_required
+def request_details(request_id):
+    req = Request.query.get_or_404(request_id)
+
+    # Get student info
+    student = User.query.get(req.user_id)
+    staff = User.query.get(req.staff_id) if req.staff_id else None
+
+    # Attach extra info (optional but helpful)
+    req.student_name = student.full_name if student else "Unknown"
+    req.student_room = student.room_number if student else "Unknown"
+    req.staff_name = staff.full_name if staff else "Not assigned"
+
+    return render_template('details.html', request=req)
+
+
 # ────────────────────────────────────────────────
 # Run application
 # ────────────────────────────────────────────────
