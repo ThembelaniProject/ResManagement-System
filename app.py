@@ -17,6 +17,7 @@ from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
 import threading
 import traceback
 import logging
+import requests
 
 
 
@@ -72,6 +73,35 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
+
+def upload_to_imgbb(file):
+    if not file or not file.filename:
+        return None
+
+    url = "https://api.imgbb.com/1/upload"
+    api_key = os.environ.get('IMGBB_API_KEY')
+
+    if not api_key:
+        app.logger.error("IMGBB API key missing")
+        return None
+
+    try:
+        response = requests.post(
+            url,
+            files={"image": file},
+            data={"key": api_key}
+        )
+        data = response.json()
+
+        if data.get("success"):
+            return data["data"]["url"]
+        else:
+            app.logger.error(f"ImgBB error: {data}")
+            return None
+
+    except Exception as e:
+        app.logger.error(f"ImgBB upload failed: {e}")
+        return None
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
@@ -878,9 +908,12 @@ def new_request():
         if 'photo' in request.files:
             file = request.files['photo']
             if file and file.filename and allowed_file(file.filename):
-                filename = secure_filename(f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{file.filename}")
-                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-                photo_path = f"uploads/{filename}"
+                photo_url = upload_to_imgbb(file)
+                if photo_url:
+                    photo_path = photo_url  # store cloud URL
+                else:
+                    flash("Image upload failed. Try again.", "danger")
+                    return redirect(url_for('new_request'))
 
         if not all([room_number, category, priority, description]):
             flash("Please fill in all required fields", "danger")
