@@ -1110,13 +1110,13 @@ def edit_request(request_id):
         if 'photo' in request.files:
             file = request.files['photo']
             if file and file.filename and allowed_file(file.filename):
-                if req.photo_path:
-                    old_path = os.path.join('static', req.photo_path)
-                    if os.path.exists(old_path):
-                        os.remove(old_path)
-                filename = secure_filename(f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{file.filename}")
-                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-                req.photo_path = f"uploads/{filename}"
+        # Upload to ImgBB
+                photo_url = upload_to_imgbb(file)
+                if photo_url:
+                    req.photo_path = photo_url  # store cloud URL
+                else:
+                    flash("Image upload failed. Try again.", "danger")
+                    return redirect(url_for('edit_request', request_id=request_id))
 
         req.room_number = room_number
         req.category = category
