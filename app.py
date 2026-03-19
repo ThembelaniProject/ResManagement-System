@@ -20,6 +20,14 @@ import logging
 import requests
 
 
+# ──── DEBUG: Check if requests is the real library ────
+print("DEBUG: requests module loaded from →", requests.__file__)
+print("DEBUG: Does requests have .post? →", hasattr(requests, 'post'))
+# Expected output in logs:
+#   .../site-packages/requests/__init__.py
+#   True
+# ──────────────────────────────────────────────────────
+
 
 # ================= FORM CLASSES =================
 class AddUserForm(FlaskForm):
@@ -36,6 +44,7 @@ class AddUserForm(FlaskForm):
     )
     room_number = StringField('Room Number', validators=[Optional(), Length(max=20)])
     submit = SubmitField('Create User')
+
 
 # ────────────────────────────────────────────────
 # App setup
@@ -76,34 +85,66 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
 def upload_to_imgbb(file):
     if not file or not file.filename:
+        app.logger.error("No file received or empty filename")
+        return None
+
+    api_key = os.environ.get('IMGBB_API_KEY')
+    if not api_key:
+        app.logger.error("IMGBB_API_KEY missing from environment variables")
+        return None
+
+    # Safety check: make sure requests wasn't overwritten
+    if not hasattr(requests, 'post'):
+        app.logger.critical("CRITICAL: requests.post does not exist → name shadowing / overwrite detected!")
         return None
 
     url = "https://api.imgbb.com/1/upload"
-    api_key = os.environ.get('IMGBB_API_KEY')
-
-    if not api_key:
-        app.logger.error("IMGBB API key missing")
-        return None
 
     try:
+        file.seek(0)  # Reset file pointer in case it was already read
+
         response = requests.post(
             url,
-            files={"image": file},
-            data={"key": api_key}
+            files={"image": (secure_filename(file.filename), file.stream, file.content_type)},
+            data={"key": api_key},
+            timeout=20
         )
+
+        app.logger.info(f"ImgBB HTTP status: {response.status_code}")
+        app.logger.debug(f"ImgBB response preview: {response.text[:500]}...")
+
+        if response.status_code != 200:
+            app.logger.error(f"Non-200 from ImgBB: {response.status_code}")
+            return None
+
         data = response.json()
 
         if data.get("success"):
-            return data["data"]["url"]
+            uploaded_url = data["data"]["url"]
+            app.logger.info(f"ImgBB upload successful → {uploaded_url}")
+            return uploaded_url
         else:
-            app.logger.error(f"ImgBB error: {data}")
+            error_msg = data.get("error", {}).get("message", "Unknown ImgBB error")
+            app.logger.error(f"ImgBB API failed: {error_msg} | full: {data}")
             return None
 
-    except Exception as e:
-        app.logger.error(f"ImgBB upload failed: {e}")
+    except requests.exceptions.Timeout:
+        app.logger.error("ImgBB upload timed out after 20s")
         return None
+    except requests.exceptions.RequestException as re:
+        app.logger.error(f"Network/request error during ImgBB upload: {str(re)}")
+        return None
+    except ValueError as ve:
+        app.logger.error(f"ImgBB returned invalid JSON: {str(ve)} | raw: {response.text[:300]}")
+        return None
+    except Exception as e:
+        app.logger.error(f"Unexpected error in upload_to_imgbb: {str(e)}", exc_info=True)
+        return None
+
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 
 # Email configuration (use environment variables in production!)
 app.config['MAIL_SERVER']   = 'smtp.gmail.com'
@@ -131,6 +172,8 @@ def internal_error(error):
     app.logger.error(f"500 error: {error}")
     app.logger.error(traceback.format_exc())  # logs full stack trace
     return "Internal Server Error - check Render logs for details", 500
+
+
 # ================= SCHEDULER SETUP =================
 scheduler = BackgroundScheduler()
 
@@ -138,12 +181,15 @@ if not os.environ.get("RENDER"):
     scheduler.start()
     atexit.register(lambda: scheduler.shutdown())
 
+
 def send_async_email(app, msg):
     with app.app_context():
         try:
             mail.send(msg)
         except Exception as e:
             app.logger.error(f"Email failed: {e}")
+
+
 # ────────────────────────────────────────────────
 # Notifications context processor
 # ────────────────────────────────────────────────
@@ -153,6 +199,7 @@ def inject_notifications():
         return {'unread_count': 0, 'has_unread': False}
     unread_count = current_user.unread_notifications_count()
     return {'unread_count': unread_count, 'has_unread': unread_count > 0}
+
 
 @app.route('/notifications/mark-read/<int:notif_id>', methods=['POST'])
 @login_required
@@ -165,17 +212,18 @@ def mark_read(notif_id):
         db.session.commit()
     return jsonify({'success': True})
 
+
 @app.route('/notifications/unread-count')
 @login_required
 def unread_count():
     return jsonify({'unread': current_user.unread_notifications_count()})
+
 
 @app.route('/notifications')
 @login_required
 def notifications_all():
     notifs = current_user.notifications.order_by(Notification.created_at.desc()).all()
     return render_template('notifications_all.html', notifications=notifs)
-
 
 @app.route('/requests/<int:request_id>/rate', methods=['GET', 'POST'])
 @login_required
