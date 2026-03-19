@@ -14,6 +14,11 @@ import atexit
 import os
 from werkzeug.utils import secure_filename
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
+import threading
+import traceback
+import logging
+
+
 
 # ================= FORM CLASSES =================
 class AddUserForm(FlaskForm):
@@ -46,11 +51,24 @@ os.makedirs(instance_dir, exist_ok=True)
 os.makedirs(upload_dir,   exist_ok=True)
 
 # Configuration
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-me-in-production'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(instance_dir, 'maintenance.db')
+# DATABASE CONFIG
+uri = os.environ.get("DATABASE_URL")
+if uri and uri.startswith("postgres://"):
+    uri = uri.replace("postgres://", "postgresql://", 1)
+app.config['SQLALCHEMY_DATABASE_URI'] = uri or 'sqlite:///maintenance.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = upload_dir
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB
+# ✅ ADD THIS BLOCK (VERY IMPORTANT)
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    "pool_pre_ping": True,
+    "pool_recycle": 280,
+    "pool_size": 5,
+    "max_overflow": 10,
+    "connect_args": {
+        "sslmode": "require"
+    }
+}
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
@@ -63,24 +81,39 @@ app.config['MAIL_PORT']     = 587
 app.config['MAIL_USE_TLS']  = True
 app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME') or 'thembelanibuthelezi64@gmail.com'
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD') or 'iuuocjnhsocusnrz'
-import os
 
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
-app.config['SECURITY_PASSWORD_SALT'] = os.environ.get('SECURITY_PASSWORD_SALT')
 
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or 'mysecretkey123'
+app.config['SECURITY_PASSWORD_SALT'] = os.environ.get('SECURITY_PASSWORD_SALT') or 'mysalt123'
 
 db   = SQLAlchemy(app)
 mail = Mail(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
+# Better logging for Render (captures to stdout)
+logging.basicConfig(level=logging.DEBUG)
+app.logger.setLevel(logging.DEBUG)
 
+# Catch-all 500 handler with traceback
+@app.errorhandler(500)
+def internal_error(error):
+    app.logger.error(f"500 error: {error}")
+    app.logger.error(traceback.format_exc())  # logs full stack trace
+    return "Internal Server Error - check Render logs for details", 500
 # ================= SCHEDULER SETUP =================
 scheduler = BackgroundScheduler()
-scheduler.start()
-atexit.register(lambda: scheduler.shutdown())
 
+if not os.environ.get("RENDER"):
+    scheduler.start()
+    atexit.register(lambda: scheduler.shutdown())
 
+def send_async_email(app, msg):
+    with app.app_context():
+        try:
+            mail.send(msg)
+        except Exception as e:
+            app.logger.error(f"Email failed: {e}")
 # ────────────────────────────────────────────────
 # Notifications context processor
 # ────────────────────────────────────────────────
@@ -198,7 +231,7 @@ def rate_request(request_id):
                         )
                         if comment:
                             msg.body += f"\nComment: {comment}"
-                        mail.send(msg)
+                        threading.Thread(target=send_async_email, args=(app, msg)).start()
                     except Exception as email_err:
                         app.logger.warning(f"Failed to send rating email: {email_err}")
                         # silent fail - user doesn't need to know
@@ -276,7 +309,48 @@ class Notification(db.Model):
 
     def __repr__(self):
         return f"<Notif {self.id} {self.type} for user {self.user_id}>"
+    
+    
+# ================= DEFAULT USERS =================
+def create_default_users():
+    """
+    Creates default users if they don't exist.
+    Currently adds one admin.
+    """
+    default_users = [
+        # full_name, email, password, role, room_number
+        ("Admin User", "thembelanibuthelezi64@gmail.com", "admin123", "admin", None),
+    ]
 
+    for full_name, email, password, role, room in default_users:
+        email = email.lower().strip()
+        existing_user = User.query.filter_by(email=email).first()
+
+        if not existing_user:
+            new_user = User(
+                full_name=full_name.strip(),
+                email=email,
+                password_hash=generate_password_hash(password),
+                role=role.lower(),
+                room_number=room
+            )
+            db.session.add(new_user)
+            print(f"✅ Default user created: {full_name} ({email})")
+        else:
+            print(f"ℹ️ User already exists: {full_name} ({email})")
+
+    try:
+        db.session.commit()
+        print("✅ Default users committed to the database.")
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ Error creating default users: {e}")
+
+with app.app_context():
+    db.create_all()
+    create_default_users()
+    
+    
 # ================= PASSWORD RESET FUNCTIONS =================
 def generate_reset_token(email):
     """Generate a password reset token"""
@@ -411,7 +485,7 @@ This is an automated message, please do not reply.
     try:
         print(f"📧 Sending reset email to {to_email}")
         print(f"📧 Reset URL: {reset_url}")
-        mail.send(msg)
+        threading.Thread(target=send_async_email, args=(app, msg)).start()
         print(f"✅ Email sent successfully to {to_email}")
         return True
     except Exception as e:
@@ -501,44 +575,70 @@ def get_admin_emails():
     return [a.email for a in admins if a.email]
 
 def notify_admins_new_request(new_request):
-    admin_emails = get_admin_emails()
-    if not admin_emails: return
-
-    student = current_user
-    subject = f"New Maintenance Request #{new_request.id} — Room {new_request.room_number}"
-
-    html_content = render_template(
-        'emails/new_request_notification.html',
-        request_id=new_request.id,
-        submitted_by_name=student.full_name,
-        submitted_by_email=student.email,
-        room_number=new_request.room_number,
-        category=new_request.category,
-        priority=new_request.priority,
-        description=new_request.description,
-        status=new_request.status,
-        created_at=new_request.created_at.strftime('%Y-%m-%d %H:%M UTC'),
-        has_photo=bool(new_request.photo_path),
-        review_url="http://127.0.0.1:5000/requests"
-    )
-
+    """
+    Safely notify all admins about a new maintenance request.
+    Handles missing templates, missing photo, and email errors gracefully.
+    """
     try:
-        msg = Message(subject, sender=app.config['MAIL_USERNAME'], recipients=admin_emails,
-                      body="New maintenance request submitted.", html=html_content)
+        admin_emails = get_admin_emails()
+        if not admin_emails:
+            app.logger.info(f"No admin emails found for request #{new_request.id}")
+            return
 
+        student = User.query.get(new_request.user_id)
+        if not student:
+            app.logger.warning(f"Student not found for request #{new_request.id}")
+            return
+
+        # Safe template rendering
+        try:
+            html_content = render_template(
+                'emails/new_request_notification.html',
+                request_id=new_request.id,
+                submitted_by_name=student.full_name,
+                submitted_by_email=student.email,
+                room_number=new_request.room_number,
+                category=new_request.category,
+                priority=new_request.priority,
+                description=new_request.description,
+                status=new_request.status,
+                created_at=new_request.created_at.strftime('%Y-%m-%d %H:%M UTC'),
+                has_photo=bool(new_request.photo_path),
+                review_url="https://resmanagement-system.onrender.com/new_request"
+            )
+        except Exception as e:
+            app.logger.warning(f"Template render failed for request #{new_request.id}: {e}")
+            html_content = f"New request #{new_request.id} submitted by {student.full_name}"
+
+        msg = Message(
+            subject=f"New Maintenance Request #{new_request.id} — Room {new_request.room_number}",
+            sender=app.config['MAIL_USERNAME'],
+            recipients=admin_emails,
+            body=f"New request #{new_request.id} submitted by {student.full_name}",
+            html=html_content
+        )
+
+        # Attach photo if exists and valid
         if new_request.photo_path:
-            full_path = os.path.join('static', new_request.photo_path)
+            full_path = os.path.join(app.root_path, 'static', new_request.photo_path)
             if os.path.exists(full_path):
-                with open(full_path, 'rb') as f:
-                    data = f.read()
-                ext = new_request.photo_path.rsplit('.', 1)[-1].lower()
-                mime = f"image/{'jpeg' if ext in ('jpg','jpeg') else ext}"
-                msg.attach(filename=f"photo.{ext}", content_type=mime, data=data)
+                try:
+                    ext = new_request.photo_path.rsplit('.', 1)[-1].lower()
+                    mime = f"image/{'jpeg' if ext in ('jpg','jpeg') else ext}"
+                    with open(full_path, 'rb') as f:
+                        msg.attach(filename=f"photo.{ext}", content_type=mime, data=f.read())
+                except Exception as e:
+                    app.logger.warning(f"Failed to attach photo for request #{new_request.id}: {e}")
 
-        mail.send(msg)
-        print(f"Notification sent for request #{new_request.id}")
+        # Send email safely
+        try:
+            threading.Thread(target=send_async_email, args=(app, msg)).start()
+            app.logger.info(f"Admin notification sent for request #{new_request.id}")
+        except Exception as e:
+            app.logger.warning(f"Failed to send email for request #{new_request.id}: {e}")
+
     except Exception as e:
-        print(f"Email failed: {e}")
+        app.logger.error(f"Unexpected error in notify_admins_new_request for request #{new_request.id}: {e}")
 
 def create_notification(user_id, message, notif_type='request', related_request_id=None):
     notif = Notification(
@@ -554,7 +654,7 @@ def notify_user_email(user, subject, html_template, **kwargs):
         html = render_template(html_template, **kwargs)
         msg = Message(subject, sender=app.config['MAIL_USERNAME'], recipients=[user.email],
                       body="Automated update.", html=html)
-        mail.send(msg)
+        threading.Thread(target=send_async_email, args=(app, msg)).start()
     except Exception as e:
         print(f"→ Email failed for {user.email}: {e}")
 
@@ -1062,7 +1162,7 @@ def add_user():
 def send_email(to, subject, body):
     msg = Message(subject, sender=app.config['MAIL_USERNAME'], recipients=[to])
     msg.body = body
-    mail.send(msg)
+    threading.Thread(target=send_async_email, args=(app, msg)).start()
 
 @app.route("/notify/<int:req_id>")
 @login_required
@@ -1103,7 +1203,7 @@ def test_email():
             recipients=[app.config['MAIL_USERNAME']],  # Send to yourself
             body="This is a test email to verify your email configuration is working correctly."
         )
-        mail.send(msg)
+        threading.Thread(target=send_async_email, args=(app, msg)).start()
         return """
         <html>
         <body style="font-family: Arial; padding: 20px;">
@@ -1211,30 +1311,3 @@ def reset_password(token):
 # ────────────────────────────────────────────────
 # Run application
 # ────────────────────────────────────────────────
-if __name__ == "__main__":
-    with app.app_context():
-        db.create_all()
-
-        default_users = [
-            ("Admin User", "admin@gmail.com", "admin123", "admin", None),
-            ("Student User", "student@gmail.com", "student123", "student", "101A"),
-            ("Plumber User", "plumber@gmail.com", "plumber123", "plumber", None),
-            ("Cleaner User", "cleaner@gmail.com", "cleaner123", "cleaner", None),
-            ("Electrician User", "electrician@gmail.com", "electrician123", "electrician", None),
-            ("Technician User", "tech@gmail.com", "tech123", "technician", None),
-            ("Pest Controller User", "pest@gmail.com", "pest123", "pest_controller", None)
-        ]
-
-        for name, email, pw, role, room in default_users:
-            if not User.query.filter_by(email=email).first():
-                user = User(
-                    full_name=name,
-                    email=email,
-                    password_hash=generate_password_hash(pw),
-                    role=role,
-                    room_number=room
-                )
-                db.session.add(user)
-
-        db.session.commit()
-        app.run(debug=True)
