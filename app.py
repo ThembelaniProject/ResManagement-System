@@ -93,9 +93,16 @@ def upload_to_imgbb(file):
         app.logger.error("IMGBB_API_KEY missing from environment variables")
         return None
 
-    # Safety check: make sure requests wasn't overwritten
     if not hasattr(requests, 'post'):
-        app.logger.critical("CRITICAL: requests.post does not exist → name shadowing / overwrite detected!")
+        import inspect
+        app.logger.critical("CRITICAL: requests.post is gone!")
+        app.logger.critical(f"  Current type of 'requests': {type(requests).__name__}")
+        app.logger.critical(f"  Current value: {repr(requests)[:200]}...")  # truncate long objects
+        app.logger.critical(f"  Last function that called us: {inspect.currentframe().f_back.f_code.co_name}")
+        # Show call stack (top 4 frames)
+        stack = inspect.stack()[1:5]
+        for frame in stack:
+            app.logger.critical(f"  Called from: {frame.filename}:{frame.lineno} in {frame.function}")
         return None
 
     url = "https://api.imgbb.com/1/upload"
