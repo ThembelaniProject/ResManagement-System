@@ -1,148 +1,512 @@
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="light">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard | Modern Panel</title>
+    <title>Admin Dashboard - Res Maintenance System</title>
     
-    <!-- Bootstrap 5.3+ -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <!-- Bootstrap 5.3 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <!-- Chart.js v4 -->
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
     
     <style>
-        :root {
-            --sidebar-width: 280px;
-            --sidebar-collapsed-width: 78px;
-            --primary: #0d6efd;
-        }
         body {
-            min-height: 100vh;
-            background: var(--bs-body-bg);
+            background-color: #f4f6f9;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
-        .navbar-brand img {
-            height: 38px;              /* Adjust size as needed */
-            width: auto;
-            max-width: 160px;
+
+        /* ========== NAVBAR ========== */
+        .navbar {
+            background-color: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            padding: 12px 24px;
         }
+
+        .navbar-brand {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .navbar-brand i {
+            color: #3498db;
+            margin-right: 8px;
+        }
+
+        /* Hide navbar right section on mobile */
+        .navbar-right {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        @media (max-width: 768px) {
+            .navbar-right {
+                display: none !important;
+            }
+            
+            .navbar {
+                padding: 12px 16px;
+            }
+        }
+
+        .dropdown-menu {
+            border: none;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            border-radius: 10px;
+        }
+
+        .dropdown-item {
+            padding: 10px 20px;
+        }
+
+        .dropdown-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        .dropdown-item i {
+            margin-right: 10px;
+            color: #3498db;
+        }
+
+        /* ========== SIDEBAR ========== */
         .sidebar {
             position: fixed;
-            inset: 0 auto 0 0;
-            width: var(--sidebar-width);
-            transition: width 0.35s ease;
-            z-index: 1030;
+            top: 0;
+            left: -280px;
+            width: 280px;
+            height: 100vh;
+            background: linear-gradient(180deg, #2c3e50 0%, #1e2b37 100%);
+            color: white;
+            transition: left 0.3s ease;
+            z-index: 1050;
+            box-shadow: 2px 0 20px rgba(0,0,0,0.1);
             overflow-y: auto;
-            background: var(--bs-dark);
-            color: white;
         }
-        .sidebar.collapsed {
-            width: var(--sidebar-collapsed-width);
-        }
-        .sidebar.collapsed .sidebar-text {
-            display: none;
-        }
-        .sidebar.collapsed .sidebar-header h4 {
-            display: none;
-        }
-        .main-content {
-            margin-left: var(--sidebar-width);
-            transition: margin-left 0.35s ease;
-        }
-        .main-content.collapsed {
-            margin-left: var(--sidebar-collapsed-width);
-        }
-        @media (max-width: 991.98px) {
-            .sidebar { width: 0; }
-            .sidebar.show { width: var(--sidebar-width); }
-            .main-content { margin-left: 0 !important; }
-        }
-        .card-stat {
-            transition: all 0.3s ease;
-            border: none;
-            border-radius: 16px;
-            overflow: hidden;
-        }
-        .card-stat:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 20px 40px rgba(0,0,0,0.12) !important;
-        }
-        .progress-ring {
-            position: relative;
-            width: 80px;
-            height: 80px;
-        }
-        .progress-ring svg {
-            transform: rotate(-90deg);
-        }
-        .progress-ring circle {
-            fill: none;
-            stroke-width: 10;
-        }
-        .progress-ring .bg { stroke: rgba(255,255,255,0.2); }
-        .progress-ring .fg { stroke: currentColor; stroke-dasharray: 251; stroke-dashoffset: 251; transition: stroke-dashoffset 1.2s ease; }
-        .chart-container { height: 420px; }
-        .nav-link { border-radius: 10px; }
-        .nav-link.active, .nav-link:hover { background: rgba(255,255,255,0.12); }
 
-         .room-info {
-            background: linear-gradient(135deg, #a2c0fb 0%, #2e3e2b 100%);
+        .sidebar.show {
+            left: 0;
+        }
+
+        .sidebar-header {
+            padding: 25px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .sidebar-header h4 {
+            margin: 0;
+            font-weight: 600;
             color: white;
-            border-radius: 12px;
+        }
+
+        .sidebar-header i {
+            color: #3498db;
+            margin-right: 10px;
+        }
+
+        .sidebar-menu {
+            padding: 20px 0;
+        }
+
+        .sidebar-menu a {
+            display: flex;
+            align-items: center;
+            padding: 12px 25px;
+            color: rgba(255,255,255,0.7);
+            text-decoration: none;
+            transition: all 0.3s;
+            border-left: 4px solid transparent;
+        }
+
+        .sidebar-menu a:hover {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border-left-color: #3498db;
+        }
+
+        .sidebar-menu a.active {
+            background: rgba(52,152,219,0.2);
+            color: white;
+            border-left-color: #3498db;
+        }
+
+        .sidebar-menu a i {
+            width: 30px;
+            font-size: 1.3rem;
+            margin-right: 10px;
+        }
+
+        .sidebar-footer {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            padding: 20px 0;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        /* Sidebar backdrop */
+        .sidebar-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1040;
+            display: none;
+        }
+
+        .sidebar-backdrop.show {
+            display: block;
+        }
+
+        /* ========== MAIN CONTENT ========== */
+        .main-content {
+            margin-left: 0;
+            transition: margin-left 0.3s ease;
+            min-height: 100vh;
+        }
+
+        @media (min-width: 992px) {
+            .main-content {
+                margin-left: 280px;
+            }
+            
+            .sidebar {
+                left: 0;
+            }
+        }
+
+        /* ========== STATS CARDS ========== */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 15px;
             padding: 20px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.02);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .stat-info h3 {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #2c3e50;
+            margin: 0 0 5px;
+        }
+
+        .stat-info p {
+            color: #7f8c8d;
+            margin: 0;
+            font-size: 0.9rem;
+        }
+
+        .stat-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+        }
+
+        .stat-icon.blue { background: #e8f0fe; color: #3498db; }
+        .stat-icon.yellow { background: #fef5e7; color: #f39c12; }
+        .stat-icon.green { background: #e8f8f0; color: #27ae60; }
+        .stat-icon.purple { background: #f3e8ff; color: #9b59b6; }
+
+        @media (max-width: 992px) {
+            .stats-row {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 576px) {
+            .stats-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* ========== CHARTS ========== */
+        .charts-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .chart-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.02);
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .chart-header h5 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #2c3e50;
+            margin: 0;
+        }
+
+        .chart-header h5 i {
+            color: #3498db;
+            margin-right: 8px;
+        }
+
+        .chart-container {
+            height: 300px;
+        }
+
+        @media (max-width: 992px) {
+            .charts-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* ========== ACTIVITY LIST ========== */
+        .activity-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .activity-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #ecf0f1;
+        }
+
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+
+        .activity-icon {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+
+        .activity-icon.success { background: #e8f8f0; color: #27ae60; }
+        .activity-icon.warning { background: #fef5e7; color: #f39c12; }
+        .activity-icon.info { background: #e8f0fe; color: #3498db; }
+        .activity-icon.danger { background: #fdeded; color: #e74c3c; }
+
+        .activity-content {
+            flex: 1;
+        }
+
+        .activity-title {
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 0.9rem;
+            margin-bottom: 3px;
+        }
+
+        .activity-desc {
+            font-size: 0.8rem;
+            color: #7f8c8d;
+            margin-bottom: 2px;
+        }
+
+        .activity-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .activity-priority {
+            font-size: 0.7rem;
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        .activity-priority.emergency { background: #fdeded; color: #e74c3c; }
+        .activity-priority.urgent { background: #fef5e7; color: #f39c12; }
+        .activity-priority.normal { background: #ecf0f1; color: #7f8c8d; }
+
+        .activity-time {
+            font-size: 0.7rem;
+            color: #7f8c8d;
+        }
+
+        .view-all {
+            display: block;
+            text-align: center;
+            padding: 10px;
+            margin-top: 10px;
+            color: #3498db;
+            text-decoration: none;
+            border-top: 1px solid #ecf0f1;
+        }
+
+        .view-all:hover {
+            background-color: #f8f9fa;
+        }
+
+        /* ========== CATEGORY GRID ========== */
+        .category-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .category-item {
+            text-align: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            transition: transform 0.3s;
+        }
+
+        .category-item:hover {
+            transform: translateY(-3px);
+        }
+
+        .category-icon-sm {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 10px;
+            font-size: 1.3rem;
+        }
+
+        .category-icon-sm.blue { background: #e8f0fe; color: #3498db; }
+        .category-icon-sm.green { background: #e8f8f0; color: #27ae60; }
+        .category-icon-sm.yellow { background: #fef5e7; color: #f39c12; }
+        .category-icon-sm.purple { background: #f3e8ff; color: #9b59b6; }
+        .category-icon-sm.red { background: #fdeded; color: #e74c3c; }
+
+        .category-name {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .category-count {
+            font-size: 0.75rem;
+            color: #7f8c8d;
+        }
+
+        @media (max-width: 768px) {
+            .category-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 576px) {
+            .category-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        /* ========== CONTENT AREA ========== */
+        .content {
+            padding: 30px;
+        }
+
+        .page-title {
+            margin-bottom: 25px;
+        }
+
+        .page-title h1 {
+            font-size: 1.8rem;
+            color: #2c3e50;
+            font-weight: 600;
+        }
+
+        .breadcrumb {
+            background: none;
+            padding: 0;
+            margin: 5px 0 0;
+        }
+
+        .breadcrumb-item a {
+            color: #3498db;
+            text-decoration: none;
+        }
+
+        /* ========== FLASH MESSAGES ========== */
+        .alert {
+            border-radius: 10px;
+            border: none;
             margin-bottom: 20px;
         }
     </style>
 </head>
 <body>
 
-<!-- Sidebar -->
-<nav class="sidebar" id="sidebar">
-    <div class="sidebar-header d-flex align-items-center justify-content-between p-4 border-bottom border-light border-opacity-10">
-        <h4 class="mb-0 sidebar-text">Admin Panel</h4>
-        <button id="sidebarToggle" class="btn btn-link text-white">
-            <i class="bi bi-list fs-4"></i>
-        </button>
-    </div>
-    <div class="p-3">
-        <ul class="nav flex-column gap-2">
-            <li class="nav-item">
-                <a class="nav-link active text-white d-flex align-items-center" href="#">
-                    <i class="bi bi-speedometer2 fs-4 me-3"></i>
-                    <span class="sidebar-text">Dashboard</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link text-white-75 d-flex align-items-center" href="{{ url_for('users') }}" ata-bs-dismiss="offcanvas">
-                    <i class="bi bi-people fs-4 me-3"></i>
-                    <span class="sidebar-text">Users</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link text-white-75 d-flex align-items-center" href="{{ url_for('requests') }}">
-                    <i class="bi bi-list-check fs-4 me-3"></i>
-                    <span class="sidebar-text">Requests</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link text-white-75 d-flex align-items-center" href="#">
-                    <i class="bi bi-bar-chart fs-4 me-3"></i>
-                    <span class="sidebar-text">Analytics</span>
-                </a>
-            </li>
-            <li class="nav-item mt-auto pt-4">
-                <a class="nav-link text-white-75 d-flex align-items-center" href="/logout">
-                    <i class="bi bi-box-arrow-right fs-4 me-3"></i>
-                    <span class="sidebar-text">Logout</span>
-                </a>
-            </li>
-        </ul>
-    </div>
-</nav>
+    <!-- Sidebar Backdrop -->
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
 
-<!-- Main Content -->
-<div class="main-content" id="mainContent">
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h4><i class="bi bi-tools"></i> RMS Admin</h4>
+        </div>
+        
+        <div class="sidebar-menu">
+            <a href="{{ url_for('dashboard') }}" class="active">
+                <i class="bi bi-speedometer2"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="{{ url_for('users') }}">
+                <i class="bi bi-people"></i>
+                <span>Users</span>
+            </a>
+            <a href="{{ url_for('requests') }}">
+                <i class="bi bi-list-check"></i>
+                <span>Requests</span>
+            </a>
+            <a href="#">
+                <i class="bi bi-bar-chart"></i>
+                <span>Analytics</span>
+            </a>
+        </div>
+
+        <div class="sidebar-footer">
+            <a href="{{ url_for('logout') }}">
+                <i class="bi bi-box-arrow-right"></i>
+                <span>Logout</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content" id="mainContent">
 
     <!-- Topbar -->
     <header class="navbar navbar-expand-lg bg-white shadow-sm sticky-top px-4">
@@ -206,212 +570,482 @@
                             {% if notif.type == 'reminder' %}
                                 <i class="bi bi-calendar-event-fill text-warning fs-4"></i>
                             {% else %}
-                                <i class="bi bi-info-circle-fill text-primary fs-4"></i>
+                                {% for notif in current_user.get_notifications(limit=5) %}
+                                <li>
+                                    <a class="dropdown-item py-2 px-3 border-bottom" href="#" data-notif-id="{{ notif.id }}">
+                                        <div class="d-flex">
+                                            <div class="me-2">
+                                                {% if notif.type == 'reminder' %}
+                                                <i class="bi bi-calendar-event-fill text-warning"></i>
+                                                {% elif notif.type == 'assignment' %}
+                                                <i class="bi bi-person-check-fill text-info"></i>
+                                                {% else %}
+                                                <i class="bi bi-info-circle-fill text-primary"></i>
+                                                {% endif %}
+                                            </div>
+                                            <div>
+                                                <small>{{ notif.message }}</small>
+                                                <br>
+                                                <small class="text-muted">{{ notif.created_at.strftime('%H:%M, %d %b') }}</small>
+                                            </div>
+                                        </div>
+                                    </a>
+                                </li>
+                                {% endfor %}
                             {% endif %}
-                        </div>
-                        <div class="flex-grow-1">
-                            <div class="small">
-                                {{ notif.message }}
+                        </ul>
+                    </div>
+
+                    <!-- Theme Toggle -->
+                    <div class="form-check form-switch d-none d-md-block">
+                        <input class="form-check-input" type="checkbox" id="themeToggle">
+                        <label class="form-check-label" for="themeToggle">
+                            <i class="bi bi-moon-stars"></i>
+                        </label>
+                    </div>
+
+                    <!-- Mobile theme toggle - Hidden on mobile anyway -->
+                    <button class="btn btn-link text-dark d-md-none p-0" id="themeToggleMobile">
+                        <i class="bi bi-moon-stars fs-5"></i>
+                    </button>
+
+                    <!-- User Dropdown -->
+                    <div class="dropdown">
+                        <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle" data-bs-toggle="dropdown">
+                            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width:40px;height:40px;">
+                                <i class="bi bi-person"></i>
                             </div>
-                            <div class="text-muted small mt-1">
-                                {{ notif.created_at.strftime('%Y-%m-%d %H:%M') }}
-                            </div>
-                        </div>
-                    </a>
-                </li>
-                <li><hr class="dropdown-divider m-0"></li>
-            {% endfor %}
-        {% endif %}
-
-        <li class="text-center py-2 border-top">
-            <a href="{{ url_for('notifications_all') }}" class="text-muted small">View all notifications</a>
-        </li>
-    </ul>
-</div>
-
-                <!-- Theme toggle -->
-                <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" id="themeToggle">
-                    <label class="form-check-label" for="themeToggle"><i class="bi bi-moon-stars"></i></label>
+                            <span class="d-none d-md-block ms-2 text-dark">{{ current_user.full_name }}</span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#"><i class="bi bi-person-circle me-2"></i>Profile</a></li>
+                            <li><a class="dropdown-item" href="#"><i class="bi bi-gear me-2"></i>Settings</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item text-danger" href="{{ url_for('logout') }}"><i class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
+                        </ul>
+                    </div>
                 </div>
-
-                <!-- User menu -->
-                <div class="dropdown">
-                    <a class="d-flex align-items-center text-decoration-none dropdown-toggle" href="#" data-bs-toggle="dropdown">
-                        <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2" style="width:38px;height:38px;">
-                            <i class="bi bi-person"></i>
-                        </div>
-                        <div class="d-none d-md-block">
-                            <div>Admin User</div>
-                            <small class="text-muted">Administrator</small>
-                        </div>
-                    </a>
-                    <ul class="dropdown-menu dropdown-menu-end shadow">
-                        <li><a class="dropdown-item" href="#">Profile</a></li>
-                        <li><a class="dropdown-item" href="#">Settings</a></li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item text-danger" href="/logout">Logout</a></li>
-                    </ul>
-                </div>
-
-            
             </div>
-        </div>
-    </header>
-
-    <!-- Content -->
-    <main class="p-4 p-lg-5">
-        <!-- Breadcrumb + Title -->
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb mb-2">
-                <li class="breadcrumb-item"><a href="#">Home</a></li>
-                <li class="breadcrumb-item active">Dashboard</li>
-            </ol>
         </nav>
-       
 
-        
-
-        <!-- Chart + Recent Activity -->
-         <!-- Welcome Section -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="room-info d-flex align-items-center justify-content-between">
-                    <div>
-                        <h3 class="mb-2">Welcome back, {{ current_user.full_name }}! 👋</h3>
-                    
+        <!-- Content Area -->
+        <div class="content">
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                    <div class="alert alert-{{ 'success' if category=='success' else 'danger' }} alert-dismissible fade show">
+                        <i class="bi bi-{{ 'check-circle' if category=='success' else 'exclamation-triangle' }} me-2"></i>
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
-                    <div class="text-end">
-                        <div class="display-6">{{ now.strftime('%B %d, %Y') if now else '' }}</div>
-                        <small class="opacity-75">Last login: Today</small>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <!-- Breadcrumb -->
+            <div class="page-title">
+                <h1>Dashboard Overview</h1>
+                <nav class="breadcrumb">
+                    <a class="breadcrumb-item" href="{{ url_for('dashboard') }}">Home</a>
+                    <span class="breadcrumb-item active">Dashboard</span>
+                </nav>
+            </div>
+
+            <!-- Stats Cards - Dynamic from Flask with safe defaults -->
+            <div class="stats-row">
+                <div class="stat-card">
+                    <div class="stat-info">
+                        <h3>{{ total_requests|default('0') }}</h3>
+                        <p>Total Requests</p>
+                    </div>
+                    <div class="stat-icon blue">
+                        <i class="bi bi-inbox"></i>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-info">
+                        <h3>{{ pending_requests|default('0') }}</h3>
+                        <p>Pending</p>
+                    </div>
+                    <div class="stat-icon yellow">
+                        <i class="bi bi-hourglass-split"></i>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-info">
+                        <h3>{{ in_progress|default('0') }}</h3>
+                        <p>In Progress</p>
+                    </div>
+                    <div class="stat-icon purple">
+                        <i class="bi bi-gear"></i>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-info">
+                        <h3>{{ completed|default('0') }}</h3>
+                        <p>Completed</p>
+                    </div>
+                    <div class="stat-icon green">
+                        <i class="bi bi-check-circle"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Row -->
+            <div class="charts-row">
+                <!-- Chart -->
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h5><i class="bi bi-graph-up"></i>Request Trends</h5>
+                        <small class="text-muted">Last 6 months</small>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="requestsChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Recent Activity -->
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h5><i class="bi bi-activity"></i>Recent Requests</h5>
+                    </div>
+                    <div class="activity-list">
+                        {% if recent_requests %}
+                            {% for req in recent_requests[:7] %}
+                            <div class="activity-item">
+                                <div class="activity-icon 
+                                    {% if req.status == 'Completed' %}success
+                                    {% elif req.status == 'Pending' %}warning
+                                    {% elif req.status == 'In Progress' %}info
+                                    {% else %}info{% endif %}">
+                                    {% if req.status == 'Completed' %}
+                                        <i class="bi bi-check-lg"></i>
+                                    {% elif req.status == 'Pending' %}
+                                        <i class="bi bi-hourglass"></i>
+                                    {% elif req.status == 'In Progress' %}
+                                        <i class="bi bi-gear"></i>
+                                    {% elif req.status == 'Assigned' %}
+                                        <i class="bi bi-person-check"></i>
+                                    {% else %}
+                                        <i class="bi bi-tools"></i>
+                                    {% endif %}
+                                </div>
+                                <div class="activity-content">
+                                    <div class="activity-title">Request #{{ req.id }} - Room {{ req.room_number }}</div>
+                                    <div class="activity-desc">{{ req.description|truncate(40) }}</div>
+                                    <div class="activity-meta">
+                                        <span class="activity-priority 
+                                            {% if req.priority == 'Emergency' %}emergency
+                                            {% elif req.priority == 'Urgent' %}urgent
+                                            {% else %}normal{% endif %}">
+                                            {{ req.priority }}
+                                        </span>
+                                        <span class="activity-time">{{ req.created_at.strftime('%H:%M, %d %b') }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-center py-4">
+                                <i class="bi bi-inbox fs-1 text-muted d-block mb-2"></i>
+                                <p class="text-muted">No recent activity</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                    <a href="{{ url_for('requests') }}" class="view-all">View All Requests</a>
+                </div>
+            </div>
+
+            <!-- Categories -->
+            {% set categories = categories or {} %}
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h5><i class="bi bi-pie-chart"></i>Requests by Category</h5>
+                </div>
+                <div class="category-grid">
+                    <div class="category-item">
+                        <div class="category-icon-sm blue">
+                            <i class="bi bi-wrench"></i>
+                        </div>
+                        <div class="category-name">Plumber</div>
+                        <div class="category-count">{{ categories.get('plumber', 0) }}</div>
+                    </div>
+                    <div class="category-item">
+                        <div class="category-icon-sm green">
+                            <i class="bi bi-brush"></i>
+                        </div>
+                        <div class="category-name">Cleaner</div>
+                        <div class="category-count">{{ categories.get('cleaner', 0) }}</div>
+                    </div>
+                    <div class="category-item">
+                        <div class="category-icon-sm yellow">
+                            <i class="bi bi-lightning"></i>
+                        </div>
+                        <div class="category-name">Electrician</div>
+                        <div class="category-count">{{ categories.get('electrician', 0) }}</div>
+                    </div>
+                    <div class="category-item">
+                        <div class="category-icon-sm purple">
+                            <i class="bi bi-tools"></i>
+                        </div>
+                        <div class="category-name">Technician</div>
+                        <div class="category-count">{{ categories.get('technician', 0) }}</div>
+                    </div>
+                    <div class="category-item">
+                        <div class="category-icon-sm red">
+                            <i class="bi bi-bug"></i>
+                        </div>
+                        <div class="category-name">Pest Control</div>
+                        <div class="category-count">{{ categories.get('pest_controller', 0) }}</div>
                     </div>
                 </div>
             </div>
         </div>
-        
-    </main>
-</div>
+    </div>
 
-<script>
-// Theme persistence
-const themeToggle = document.getElementById('themeToggle');
-const currentTheme = localStorage.getItem('theme') || 'light';
-document.documentElement.setAttribute('data-bs-theme', currentTheme);
-themeToggle.checked = currentTheme === 'dark';
-
-themeToggle.addEventListener('change', () => {
-    const theme = themeToggle.checked ? 'dark' : 'light';
-    document.documentElement.setAttribute('data-bs-theme', theme);
-    localStorage.setItem('theme', theme);
-});
-
-// Sidebar collapse
-const sidebar = document.getElementById('sidebar');
-const mainContent = document.getElementById('mainContent');
-const sidebarToggle = document.getElementById('sidebarToggle');
-
-sidebarToggle?.addEventListener('click', () => {
-    sidebar.classList.toggle('collapsed');
-    mainContent.classList.toggle('collapsed');
-});
-</script>
-
-<!-- Chart with more advanced config -->
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    const ctx = document.getElementById('myChart')?.getContext('2d');
-    if (!ctx) return;
-
-    new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-            datasets: [
-                {
-                    label: 'Total',
-                    data: [{{ total|default(120) }}, 190, 230, 180, 260, {{ total|default(310) }}],
-                    backgroundColor: 'rgba(13,110,253,0.6)',
-                    borderColor: 'rgb(13,110,253)',
-                    borderRadius: 8
-                },
-                {
-                    label: 'Completed',
-                    data: [80, 140, 190, 150, 210, {{ completed|default(260) }}],
-                    backgroundColor: 'rgba(25,135,84,0.6)',
-                    borderColor: 'rgb(25,135,84)',
-                    borderRadius: 8
-                },
-                {
-                    label: 'Pending',
-                    data: [40, 50, 40, 30, 50, {{ pending|default(50) }}],
-                    backgroundColor: 'rgba(255,193,7,0.6)',
-                    borderColor: 'rgb(255,193,7)',
-                    borderRadius: 8
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { position: 'top' },
-                tooltip: { mode: 'index', intersect: false }
-            },
-            scales: {
-                x: { grid: { display: false } },
-                y: { beginAtZero: true }
-            },
-            animation: { duration: 1800, easing: 'easeOutQuart' }
-        }
-    });
-});
-
-
-document.querySelectorAll('.notification-link').forEach(link => {
-    link.addEventListener('click', function(e) {
-        const notifId = this.dataset.notifId;
-        if (notifId) {
-            fetch(`/notifications/mark-read/${notifId}`, { method: 'POST' })
-                .then(r => r.json())
-                .then(data => {
-                    if (data.success) {
-                        this.classList.remove('bg-light', 'fw-bold');
-                    }
-                });
-        }
-    });
-});
-</script>
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('#sidebar .nav-link').forEach(link => {
-        link.addEventListener('click', function(e) {
-            const href = this.getAttribute('href');
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // ===== HAMBURGER MENU - MUST LOAD FIRST =====
+        (function() {
+            console.log('Hamburger menu initializing...');
             
-            // Skip if not a real navigation link
-            if (!href || href === '#' || href.startsWith('javascript:')) {
+            // Get elements
+            const menuToggle = document.getElementById('menuToggle');
+            const sidebar = document.getElementById('sidebar');
+            const backdrop = document.getElementById('sidebarBackdrop');
+            
+            console.log('menuToggle:', menuToggle);
+            console.log('sidebar:', sidebar);
+            console.log('backdrop:', backdrop);
+            
+            if (!menuToggle) {
+                console.error('Menu toggle not found!');
                 return;
             }
-
-            // Try to close the offcanvas (mobile only)
-            const sidebarEl = document.getElementById('sidebar');
             
-            // Bootstrap might have added .offcanvas class dynamically in some cases
-            if (sidebarEl.classList.contains('offcanvas') || window.innerWidth < 992) {
-                const offcanvas = bootstrap.Offcanvas.getOrCreateInstance(sidebarEl);
-                if (offcanvas) {
-                    // Tiny delay often helps Safari/Android finish the click navigation
-                    setTimeout(() => {
-                        offcanvas.hide();
-                    }, 100);
+            if (!sidebar) {
+                console.error('Sidebar not found!');
+                return;
+            }
+            
+            // Function to open sidebar
+            function openSidebar() {
+                console.log('Opening sidebar');
+                sidebar.classList.add('show');
+                if (backdrop) backdrop.classList.add('show');
+                document.body.style.overflow = 'hidden';
+            }
+            
+            // Function to close sidebar
+            function closeSidebar() {
+                console.log('Closing sidebar');
+                sidebar.classList.remove('show');
+                if (backdrop) backdrop.classList.remove('show');
+                document.body.style.overflow = '';
+            }
+            
+            // Toggle function
+            function toggleSidebar() {
+                if (sidebar.classList.contains('show')) {
+                    closeSidebar();
+                } else {
+                    openSidebar();
                 }
             }
-        });
-    });
-});
-</script>
+            
+            // Add click event to menu toggle
+            menuToggle.addEventListener('click', function(e) {
+                console.log('Menu toggle clicked!');
+                e.preventDefault();
+                e.stopPropagation();
+                toggleSidebar();
+            });
+            
+            // Close when clicking backdrop
+            if (backdrop) {
+                backdrop.addEventListener('click', function(e) {
+                    console.log('Backdrop clicked');
+                    e.preventDefault();
+                    closeSidebar();
+                });
+            }
+            
+            // Close when clicking sidebar links (mobile only)
+            document.querySelectorAll('.sidebar-menu a').forEach(function(link) {
+                link.addEventListener('click', function() {
+                    if (window.innerWidth < 992) {
+                        console.log('Sidebar link clicked - closing');
+                        closeSidebar();
+                    }
+                });
+            });
+            
+            // Close on escape key
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && sidebar.classList.contains('show')) {
+                    console.log('Escape pressed - closing');
+                    closeSidebar();
+                }
+            });
+            
+            // Handle window resize
+            window.addEventListener('resize', function() {
+                if (window.innerWidth >= 992) {
+                    closeSidebar();
+                }
+            });
+            
+            console.log('Hamburger menu initialized successfully!');
+        })();
 
+        // ===== THEME TOGGLE =====
+        (function() {
+            const themeToggle = document.getElementById("themeToggle");
+            const themeToggleMobile = document.getElementById("themeToggleMobile");
+            
+            try {
+                const currentTheme = localStorage.getItem("theme") || "light";
+                document.documentElement.setAttribute("data-bs-theme", currentTheme);
+                if (themeToggle) themeToggle.checked = currentTheme === "dark";
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+                function toggleTheme() {
+                    const html = document.documentElement;
+                    const newTheme = html.getAttribute("data-bs-theme") === "light" ? "dark" : "light";
+                    html.setAttribute("data-bs-theme", newTheme);
+                    localStorage.setItem("theme", newTheme);
+                    if (themeToggle) themeToggle.checked = newTheme === "dark";
+                    if (themeToggleMobile) {
+                        const icon = themeToggleMobile.querySelector('i');
+                        if (icon) {
+                            if (newTheme === "dark") {
+                                icon.classList.replace('bi-moon-stars', 'bi-sun');
+                            } else {
+                                icon.classList.replace('bi-sun', 'bi-moon-stars');
+                            }
+                        }
+                    }
+                }
+
+                if (themeToggle) {
+                    themeToggle.addEventListener("change", toggleTheme);
+                }
+
+                if (themeToggleMobile) {
+                    themeToggleMobile.addEventListener("click", toggleTheme);
+                }
+            } catch (e) {
+                console.log('Theme toggle error:', e);
+            }
+        })();
+
+        // ===== CHART INITIALIZATION =====
+        (function() {
+            const ctx = document.getElementById('requestsChart');
+            if (!ctx) return;
+            
+            try {
+                // Safely get chart data with defaults
+                let chartLabels = [];
+                let chartTotalData = [];
+                let chartCompletedData = [];
+                let chartPendingData = [];
+                
+                {% if chart_labels %}
+                    chartLabels = {{ chart_labels|tojson|safe }};
+                {% else %}
+                    chartLabels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun"];
+                {% endif %}
+                
+                {% if chart_total_data %}
+                    chartTotalData = {{ chart_total_data|tojson|safe }};
+                {% else %}
+                    chartTotalData = [0, 0, 0, 0, 0, 0];
+                {% endif %}
+                
+                {% if chart_completed_data %}
+                    chartCompletedData = {{ chart_completed_data|tojson|safe }};
+                {% else %}
+                    chartCompletedData = [0, 0, 0, 0, 0, 0];
+                {% endif %}
+                
+                {% if chart_pending_data %}
+                    chartPendingData = {{ chart_pending_data|tojson|safe }};
+                {% else %}
+                    chartPendingData = [0, 0, 0, 0, 0, 0];
+                {% endif %}
+                
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: chartLabels,
+                        datasets: [
+                            {
+                                label: 'Total',
+                                data: chartTotalData,
+                                borderColor: '#3498db',
+                                backgroundColor: 'rgba(52,152,219,0.05)',
+                                tension: 0.3,
+                                fill: true
+                            },
+                            {
+                                label: 'Completed',
+                                data: chartCompletedData,
+                                borderColor: '#27ae60',
+                                backgroundColor: 'rgba(39,174,96,0.05)',
+                                tension: 0.3,
+                                fill: true
+                            },
+                            {
+                                label: 'Pending',
+                                data: chartPendingData,
+                                borderColor: '#f39c12',
+                                backgroundColor: 'rgba(243,156,18,0.05)',
+                                tension: 0.3,
+                                fill: true
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: { boxWidth: 12 }
+                            }
+                        },
+                        scales: {
+                            y: { beginAtZero: true }
+                        }
+                    }
+                });
+            } catch (e) {
+                console.log('Chart initialization error:', e);
+            }
+        })();
+
+        // ===== NOTIFICATION CLICK HANDLER =====
+        (function() {
+            document.querySelectorAll('[data-notif-id]').forEach(function(link) {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const notifId = this.dataset.notifId;
+                    if (notifId) {
+                        fetch(`/notifications/mark-read/${notifId}`, { method: 'POST' })
+                            .then(r => r.json())
+                            .then(data => {
+                                if (data.success) {
+                                    this.closest('li').remove();
+                                }
+                            })
+                            .catch(err => console.log('Notification error:', err));
+                    }
+                });
+            });
+        })();
+    </script>
 </body>
 </html>

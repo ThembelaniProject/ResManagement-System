@@ -5,12 +5,189 @@
 
 {% block extra_css %}
 <style>
+    /* ========== GLOBAL STYLES ========== */
+    * {
+        box-sizing: border-box;
+    }
+    
+    body { 
+        min-height: 100vh; 
+        background-color: #f8f9fa;
+        overflow-x: hidden;
+        font-size: 14px;
+    }
+    
+    @media (min-width: 992px) {
+        body {
+            font-size: 16px;
+        }
+    }
+    
+    /* ========== BREADCRUMB ========== */
+    .breadcrumb {
+        background: none;
+        padding: 0;
+        margin-bottom: 1.5rem;
+    }
+    
+    .breadcrumb-item a {
+        color: #0d6efd;
+        text-decoration: none;
+    }
+    
+    .breadcrumb-item.active {
+        color: #6c757d;
+    }
+    
+    /* ========== CARDS ========== */
+    .card {
+        border: none;
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+    }
+    
+    .card-header {
+        background-color: white;
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+        padding: 1.25rem 1.5rem;
+    }
+    
+    .card-header h4 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin: 0;
+    }
+    
+    .card-header h5 {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin: 0;
+    }
+    
+    .card-body {
+        padding: 1.5rem;
+    }
+    
+    @media (max-width: 767px) {
+        .card {
+            border-radius: 12px;
+            margin-bottom: 1rem;
+        }
+        
+        .card-header {
+            padding: 1rem;
+        }
+        
+        .card-header h4 {
+            font-size: 1.1rem;
+        }
+        
+        .card-header h5 {
+            font-size: 1rem;
+        }
+        
+        .card-body {
+            padding: 1rem;
+        }
+    }
+    
+    /* ========== FORM ELEMENTS ========== */
+    .form-label {
+        font-weight: 600;
+        font-size: 0.95rem;
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+    }
+    
+    .form-label i {
+        margin-right: 0.5rem;
+        color: #0d6efd;
+    }
+    
+    .input-group-text {
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 10px 0 0 10px;
+    }
+    
+    .form-control, .form-select {
+        border-radius: 10px;
+        border: 1px solid #dee2e6;
+        padding: 0.6rem 1rem;
+        font-size: 0.95rem;
+        transition: all 0.2s;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.2rem rgba(13,110,253,0.15);
+    }
+    
+    .form-text {
+        font-size: 0.8rem;
+        color: #6c757d;
+        margin-top: 0.25rem;
+    }
+    
+    .input-group .form-control {
+        border-radius: 0 10px 10px 0;
+    }
+    
+    @media (max-width: 767px) {
+        .form-label {
+            font-size: 0.9rem;
+        }
+        
+        .form-control, .form-select {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.9rem;
+        }
+    }
+    
+    /* ========== STATUS ALERT ========== */
+    .info-alert {
+        border-left: 4px solid #17a2b8;
+        background-color: #f8f9fa;
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    
+    .status-badge {
+        font-size: 0.9rem;
+        padding: 0.5rem 1rem;
+        border-radius: 30px;
+        display: inline-block;
+    }
+    
+    @media (max-width: 767px) {
+        .info-alert {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+    }
+    
+    /* ========== PHOTO SECTION ========== */
     .current-photo {
         max-width: 200px;
         max-height: 200px;
         border-radius: 8px;
         border: 2px solid #dee2e6;
         margin-bottom: 10px;
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+    
+    .current-photo:hover {
+        transform: scale(1.05);
+        border-color: #0d6efd;
     }
     
     .photo-preview {
@@ -23,52 +200,151 @@
         padding: 5px;
     }
     
-    .info-alert {
-        border-left: 4px solid #17a2b8;
-        background-color: #f8f9fa;
-    }
-    
-    .field-icon {
-        position: absolute;
-        right: 10px;
-        top: 10px;
-        color: #6c757d;
-        z-index: 10;
-    }
-    
-    .status-badge {
-        font-size: 1rem;
-        padding: 8px 15px;
-    }
-    
-    .readonly-field {
-        background-color: #f8f9fa;
-        cursor: not-allowed;
-    }
-    
     .photo-actions {
         display: flex;
-        gap: 10px;
+        gap: 1rem;
         align-items: center;
         flex-wrap: wrap;
+    }
+    
+    @media (max-width: 767px) {
+        .current-photo, .photo-preview {
+            max-width: 150px;
+            max-height: 150px;
+        }
+        
+        .photo-actions {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+    }
+    
+    /* ========== BUTTONS ========== */
+    .btn {
+        border-radius: 10px;
+        padding: 0.6rem 1.5rem;
+        font-weight: 500;
+        transition: all 0.3s;
+    }
+    
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102,126,234,0.4);
+    }
+    
+    .btn-lg {
+        padding: 0.75rem 2rem;
+    }
+    
+    @media (max-width: 767px) {
+        .btn {
+            padding: 0.5rem 1rem;
+            font-size: 0.9rem;
+        }
+        
+        .btn-lg {
+            padding: 0.6rem 1.25rem;
+        }
+        
+        .d-flex.justify-content-between {
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .d-flex.justify-content-between .btn {
+            width: 100%;
+        }
+    }
+    
+    /* ========== SIDEBAR INFO ========== */
+    .list-unstyled li {
+        padding: 0.75rem 0;
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .list-unstyled li:last-child {
+        border-bottom: none;
+    }
+    
+    .list-unstyled i {
+        color: #0d6efd;
+        width: 24px;
+    }
+    
+    /* ========== EDIT LIMITATIONS CARD ========== */
+    .card.border-warning {
+        border: 2px solid #ffc107 !important;
+    }
+    
+    .card.border-warning .card-header {
+        background: rgba(255, 193, 7, 0.1);
+    }
+    
+    /* ========== TOUCH TARGETS ========== */
+    .touch-target {
+        min-height: 44px;
+        min-width: 44px;
+    }
+    
+    /* ========== MODAL ========== */
+    .modal-content {
+        border: none;
+        border-radius: 20px;
+        overflow: hidden;
+    }
+    
+    .modal-header {
+        background: white;
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+        padding: 1rem 1.5rem;
+    }
+    
+    .modal-body {
+        padding: 1.5rem;
+    }
+    
+    @media (max-width: 767px) {
+        .modal-content {
+            border-radius: 16px;
+        }
+        
+        .modal-header {
+            padding: 0.75rem 1rem;
+        }
+        
+        .modal-body {
+            padding: 1rem;
+        }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <nav aria-label="breadcrumb">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
-            <li class="breadcrumb-item"><a href="{{ url_for('my_requests') }}">My Requests</a></li>
-            <li class="breadcrumb-item active">Edit Request #{{ request.id }}</li>
-        </ol>
-    </nav>
-
+<div class="container-fluid mt-4">
     <div class="row">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}"><i class="bi bi-house-door me-1"></i>Dashboard</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('my_requests') }}">My Requests</a></li>
+                    <li class="breadcrumb-item active">Edit Request #{{ request.id }}</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <div class="row g-4">
         <div class="col-lg-8">
-            <div class="card shadow-sm">
-                <div class="card-header bg-white py-3">
+            <div class="card">
+                <div class="card-header">
                     <h4 class="mb-0">
                         <i class="bi bi-pencil-square me-2 text-primary"></i>
                         Edit Maintenance Request #{{ request.id }}
@@ -77,14 +353,14 @@
                 
                 <div class="card-body">
                     <!-- Request Status Alert -->
-                    <div class="alert alert-info info-alert d-flex align-items-center mb-4" role="alert">
-                        <i class="bi bi-info-circle-fill me-2 fs-5"></i>
-                        <div>
+                    <div class="info-alert" role="alert">
+                        <i class="bi bi-info-circle-fill fs-4 text-info"></i>
+                        <div class="flex-grow-1">
                             <strong>Request Status:</strong> 
                             <span class="badge bg-{% if request.status == 'Pending' %}warning{% elif request.status == 'Assigned' %}info{% elif request.status == 'In Progress' %}primary{% elif request.status == 'Completed' %}success{% endif %} status-badge ms-2">
                                 {{ request.status }}
                             </span>
-                            <br>
+                            <br class="d-md-none">
                             <small class="text-muted">Created on {{ request.created_at | format_datetime }}</small>
                         </div>
                     </div>
@@ -93,8 +369,8 @@
                     <form method="POST" enctype="multipart/form-data" class="needs-validation" novalidate>
                         <!-- Room Number -->
                         <div class="mb-4">
-                            <label for="room_number" class="form-label fw-semibold">
-                                <i class="bi bi-door-open me-2 text-primary"></i>Room / Location
+                            <label for="room_number" class="form-label">
+                                <i class="bi bi-door-open"></i>Room / Location
                                 <span class="text-danger">*</span>
                             </label>
                             <div class="input-group">
@@ -114,8 +390,8 @@
 
                         <!-- Category -->
                         <div class="mb-4">
-                            <label for="category" class="form-label fw-semibold">
-                                <i class="bi bi-tag me-2 text-primary"></i>Category
+                            <label for="category" class="form-label">
+                                <i class="bi bi-tag"></i>Category
                                 <span class="text-danger">*</span>
                             </label>
                             <select class="form-select" id="category" name="category" required>
@@ -133,8 +409,8 @@
 
                         <!-- Priority -->
                         <div class="mb-4">
-                            <label for="priority" class="form-label fw-semibold">
-                                <i class="bi bi-exclamation-triangle me-2 text-primary"></i>Priority
+                            <label for="priority" class="form-label">
+                                <i class="bi bi-exclamation-triangle"></i>Priority
                                 <span class="text-danger">*</span>
                             </label>
                             <select class="form-select" id="priority" name="priority" required>
@@ -149,8 +425,8 @@
 
                         <!-- Description -->
                         <div class="mb-4">
-                            <label for="description" class="form-label fw-semibold">
-                                <i class="bi bi-card-text me-2 text-primary"></i>Description
+                            <label for="description" class="form-label">
+                                <i class="bi bi-card-text"></i>Description
                                 <span class="text-danger">*</span>
                             </label>
                             <textarea class="form-control" 
@@ -167,17 +443,16 @@
                         <!-- Current Photo (if exists) -->
                         {% if request.photo_path %}
                         <div class="mb-4">
-                            <label class="form-label fw-semibold">
-                                <i class="bi bi-image me-2 text-primary"></i>Current Photo
+                            <label class="form-label">
+                                <i class="bi bi-image"></i>Current Photo
                             </label>
                             <div class="photo-actions">
                                 <img src="{{ url_for('static', filename=request.photo_path) }}" 
                                      class="current-photo" 
                                      alt="Current request photo"
-                                      onclick="showPhoto(this.getAttribute('data-photo-src'))"
+                                     onclick="showPhoto(this.src)"
                                      data-bs-toggle="modal" 
-                                     data-bs-target="#photoModal"
-                                     style="cursor: pointer;">
+                                     data-bs-target="#photoModal">
                                 <div>
                                     <button type="button" class="btn btn-sm btn-outline-danger" onclick="removePhoto()">
                                         <i class="bi bi-trash me-1"></i>Remove Photo
@@ -190,8 +465,8 @@
 
                         <!-- Upload New Photo -->
                         <div class="mb-4">
-                            <label for="photo" class="form-label fw-semibold">
-                                <i class="bi bi-camera me-2 text-primary"></i>
+                            <label for="photo" class="form-label">
+                                <i class="bi bi-camera"></i>
                                 {% if request.photo_path %}Replace Photo{% else %}Upload Photo{% endif %}
                                 <small class="text-muted">(Optional)</small>
                             </label>
@@ -218,12 +493,12 @@
                                     Required fields
                                 </small>
                             </div>
-                            <div>
-                                <a href="{{ url_for('my_requests') }}" class="btn btn-outline-secondary btn-lg me-2">
+                            <div class="d-flex gap-2">
+                                <a href="{{ url_for('my_requests') }}" class="btn btn-outline-secondary">
                                     <i class="bi bi-x-circle me-2"></i>Cancel
                                 </a>
-                                <button type="submit" class="btn btn-primary btn-lg">
-                                    <i class="bi bi-check-circle me-2"></i>Update Request
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-check-circle me-2"></i>Update
                                 </button>
                             </div>
                         </div>
@@ -234,69 +509,65 @@
 
         <!-- Sidebar Info -->
         <div class="col-lg-4">
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-white py-3">
-                    <h5 class="card-title mb-0">
-                        <i class="bi bi-info-circle me-2"></i>
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-info-circle me-2 text-primary"></i>
                         Request Information
                     </h5>
                 </div>
                 <div class="card-body">
                     <ul class="list-unstyled">
-                        <li class="mb-3">
-                            <strong><i class="bi bi-hash me-2"></i>Request ID:</strong>
-                            <span class="float-end">#{{ request.id }}</span>
+                        <li>
+                            <span><i class="bi bi-hash"></i>Request ID:</span>
+                            <strong>#{{ request.id }}</strong>
                         </li>
-                        <li class="mb-3">
-                            <strong><i class="bi bi-calendar me-2"></i>Created:</strong>
-                            <span class="float-end">{{ request.created_at | format_datetime }}</span>
+                        <li>
+                            <span><i class="bi bi-calendar"></i>Created:</span>
+                            <strong>{{ request.created_at | format_datetime }}</strong>
                         </li>
-                        <li class="mb-3">
-                            <strong><i class="bi bi-arrow-repeat me-2"></i>Last Updated:</strong>
-                            <span class="float-end">{{ request.updated_at | format_datetime if request.updated_at else 'N/A' }}</span>
+                        <li>
+                            <span><i class="bi bi-arrow-repeat"></i>Last Updated:</span>
+                            <strong>{{ request.updated_at | format_datetime if request.updated_at else 'N/A' }}</strong>
                         </li>
-                        <li class="mb-3">
-                            <strong><i class="bi bi-person-badge me-2"></i>Assigned To:</strong>
-                            <span class="float-end">
+                        <li>
+                            <span><i class="bi bi-person-badge"></i>Assigned To:</span>
+                            <strong>
                                 {% if request.staff_name %}
                                     {{ request.staff_name }}
                                 {% else %}
-                                    <span class="text-muted">Not assigned yet</span>
+                                    <span class="text-muted">Not assigned</span>
                                 {% endif %}
-                            </span>
+                            </strong>
                         </li>
                     </ul>
                 </div>
             </div>
 
-            <div class="card shadow-sm border-warning">
-                <div class="card-header bg-warning bg-opacity-25 py-3">
-                    <h5 class="card-title mb-0">
+            <div class="card border-warning">
+                <div class="card-header bg-warning bg-opacity-25">
+                    <h5 class="mb-0">
                         <i class="bi bi-exclamation-triangle me-2"></i>
                         Edit Limitations
                     </h5>
                 </div>
                 <div class="card-body">
                     <ul class="list-unstyled mb-0">
-                        <li class="mb-2">
+                        <li class="d-flex align-items-center mb-2">
                             <i class="bi bi-check-circle-fill text-success me-2"></i>
-                            You can edit pending requests only
+                            <span>You can edit pending requests only</span>
                         </li>
-                        <li class="mb-2">
+                        <li class="d-flex align-items-center mb-2">
                             <i class="bi bi-check-circle-fill text-success me-2"></i>
-                            Category can be changed
+                            <span>Category can be changed</span>
                         </li>
-                        <li class="mb-2">
+                        <li class="d-flex align-items-center mb-2">
                             <i class="bi bi-check-circle-fill text-success me-2"></i>
-                            Photos can be added/updated
+                            <span>Photos can be added/updated</span>
                         </li>
-                        <li class="mb-2">
+                        <li class="d-flex align-items-center mb-2">
                             <i class="bi bi-x-circle-fill text-danger me-2"></i>
-                            Cannot edit assigned/completed requests
-                        </li>
-                        <li class="mb-2">
-                            <i class="bi bi-x-circle-fill text-danger me-2"></i>
-                            Cannot change after staff assigned
+                            <span>Cannot edit assigned/completed requests</span>
                         </li>
                     </ul>
                 </div>
@@ -346,6 +617,14 @@ function previewImage(input) {
     const preview = document.getElementById('imagePreview');
     
     if (input.files && input.files[0]) {
+        // Validate file size
+        if (input.files[0].size > 16 * 1024 * 1024) {
+            alert('File is too large. Maximum size is 16MB.');
+            input.value = '';
+            preview.style.display = 'none';
+            return;
+        }
+        
         const reader = new FileReader();
         
         reader.onload = function(e) {
@@ -375,7 +654,6 @@ function removePhoto() {
             currentPhoto.style.opacity = '0.5';
         }
         
-        // Show message
         alert('Photo will be removed when you save changes.');
     }
 }
@@ -385,6 +663,7 @@ let formChanged = false;
 
 document.querySelectorAll('form input, form select, form textarea').forEach(element => {
     element.addEventListener('change', () => formChanged = true);
+    element.addEventListener('input', () => formChanged = true);
 });
 
 document.getElementById('photo').addEventListener('change', () => formChanged = true);
@@ -393,40 +672,6 @@ window.addEventListener('beforeunload', function(e) {
     if (formChanged) {
         e.preventDefault();
         e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
-    }
-});
-
-// Category change confirmation
-document.getElementById('category').addEventListener('change', function() {
-    if (formChanged) {
-        const originalValue = '{{ request.category }}';
-        if (this.value !== originalValue) {
-            console.log('Category changed from', originalValue, 'to', this.value);
-        }
-    }
-});
-
-// Priority color preview
-document.getElementById('priority').addEventListener('change', function() {
-    const priorityMap = {
-        'Normal': '🟢',
-        'Urgent': '🟡',
-        'Emergency': '🔴'
-    };
-    
-    if (this.value) {
-        const selectedOption = this.options[this.selectedIndex];
-        selectedOption.text = priorityMap[this.value] + ' ' + this.value;
-    }
-});
-
-// File size validation
-document.getElementById('photo').addEventListener('change', function() {
-    const file = this.files[0];
-    if (file && file.size > 16 * 1024 * 1024) { // 16MB
-        alert('File is too large. Maximum size is 16MB.');
-        this.value = '';
-        document.getElementById('imagePreview').style.display = 'none';
     }
 });
 

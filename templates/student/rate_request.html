@@ -2,34 +2,351 @@
 
 {% block title %}Rate Request #{{ request.id }}{% endblock %}
 
+{% block extra_css %}
+<style>
+    /* ========== RATING PAGE STYLES ========== */
+    .rating-container {
+        min-height: calc(100vh - 200px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+    }
+    
+    .rating-card {
+        background: white;
+        border-radius: 24px;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        overflow: hidden;
+        width: 100%;
+        max-width: 600px;
+        margin: 0 auto;
+    }
+    
+    .rating-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        text-align: center;
+    }
+    
+    .rating-header h2 {
+        font-size: 2rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    
+    .rating-header p {
+        opacity: 0.9;
+        margin: 0;
+        font-size: 1rem;
+    }
+    
+    .rating-body {
+        padding: 2rem;
+    }
+    
+    .request-info {
+        background-color: #f8f9fa;
+        border-radius: 16px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .info-item {
+        display: flex;
+        margin-bottom: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .info-item:last-child {
+        margin-bottom: 0;
+        padding-bottom: 0;
+        border-bottom: none;
+    }
+    
+    .info-label {
+        width: 100px;
+        font-weight: 600;
+        color: #495057;
+    }
+    
+    .info-value {
+        flex: 1;
+        color: #212529;
+    }
+    
+    .rating-stars {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        margin: 2rem 0;
+    }
+    
+    .star-option {
+        text-align: center;
+        cursor: pointer;
+        padding: 1rem;
+        border-radius: 12px;
+        transition: all 0.3s;
+        flex: 1;
+        max-width: 100px;
+    }
+    
+    .star-option:hover {
+        background-color: #f8f9fa;
+        transform: translateY(-3px);
+    }
+    
+    .star-option.selected {
+        background-color: #e9ecef;
+        border: 2px solid #0d6efd;
+    }
+    
+    .star-option .star-icon {
+        font-size: 2rem;
+        color: #ffc107;
+        margin-bottom: 0.5rem;
+    }
+    
+    .star-option .star-label {
+        font-size: 0.9rem;
+        font-weight: 600;
+    }
+    
+    .form-select-lg {
+        font-size: 1.1rem;
+        padding: 0.75rem 1rem;
+        border-radius: 12px;
+    }
+    
+    .form-control-lg {
+        font-size: 1rem;
+        padding: 0.75rem 1rem;
+        border-radius: 12px;
+    }
+    
+    .btn-rating {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 0.75rem 2rem;
+        font-size: 1.1rem;
+        font-weight: 600;
+        border-radius: 12px;
+        width: 100%;
+        transition: all 0.3s;
+    }
+    
+    .btn-rating:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 20px rgba(102,126,234,0.3);
+    }
+    
+    .btn-outline-secondary {
+        border-radius: 12px;
+        padding: 0.75rem 2rem;
+        font-size: 1.1rem;
+        width: 100%;
+    }
+    
+    @media (max-width: 767px) {
+        .rating-header {
+            padding: 1.5rem;
+        }
+        
+        .rating-header h2 {
+            font-size: 1.5rem;
+        }
+        
+        .rating-body {
+            padding: 1.5rem;
+        }
+        
+        .info-item {
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .info-label {
+            width: 100%;
+        }
+        
+        .rating-stars {
+            flex-wrap: wrap;
+        }
+        
+        .star-option {
+            min-width: 80px;
+        }
+        
+        .btn-rating, .btn-outline-secondary {
+            padding: 0.6rem 1.5rem;
+            font-size: 1rem;
+        }
+    }
+    
+    /* Touch-friendly targets */
+    .star-option, .btn-rating, .btn-outline-secondary {
+        min-height: 44px;
+        min-width: 44px;
+    }
+    
+    /* Animation */
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .rating-card {
+        animation: slideIn 0.5s ease-out;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container mt-4">
-    <h2>Rate Maintenance Request #{{ request.id }}</h2>
-    <p><strong>Room:</strong> {{ request.room_number }}</p>
-    <p><strong>Category:</strong> {{ request.category|title }}</p>
-    <p><strong>Description:</strong> {{ request.description }}</p>
-    <hr>
-
-    <form method="POST">
-        <div class="mb-3">
-            <label class="form-label fw-bold">Your Rating (1–5 stars)</label>
-            <select name="rating" class="form-select w-auto" required>
-                <option value="">Select...</option>
-                <option value="5">5 - Excellent</option>
-                <option value="4">4 - Good</option>
-                <option value="3">3 - Average</option>
-                <option value="2">2 - Poor</option>
-                <option value="1">1 - Very Poor</option>
-            </select>
+<div class="rating-container">
+    <div class="rating-card">
+        <div class="rating-header">
+            <i class="bi bi-star-fill" style="font-size: 3rem; opacity: 0.5;"></i>
+            <h2>Rate Your Experience</h2>
+            <p>Help us improve our service</p>
         </div>
+        
+        <div class="rating-body">
+            <!-- Request Info -->
+            <div class="request-info">
+                <div class="info-item">
+                    <span class="info-label">Request #:</span>
+                    <span class="info-value"><strong>{{ request.id }}</strong></span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Room:</span>
+                    <span class="info-value">{{ request.room_number }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Category:</span>
+                    <span class="info-value">
+                        {% if request.category == 'plumber' %}🚰 Plumber
+                        {% elif request.category == 'cleaner' %}🧹 Cleaner
+                        {% elif request.category == 'electrician' %}⚡ Electrician
+                        {% elif request.category == 'technician' %}🔧 Technician
+                        {% elif request.category == 'pest_controller' %}🐜 Pest Controller
+                        {% else %}{{ request.category|title }}
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Description:</span>
+                    <span class="info-value">{{ request.description|truncate(100) }}</span>
+                </div>
+            </div>
 
-        <div class="mb-3">
-            <label class="form-label fw-bold">Comment (optional)</label>
-            <textarea name="comment" class="form-control" rows="4" placeholder="Tell us about your experience..."></textarea>
+            <!-- Rating Form -->
+            <form method="POST">
+                <!-- Star Rating Selector (Visual) -->
+                <div class="rating-stars" id="starSelector">
+                    <div class="star-option" data-value="5" onclick="selectRating(5)">
+                        <div class="star-icon">⭐</div>
+                        <div class="star-label">Excellent</div>
+                    </div>
+                    <div class="star-option" data-value="4" onclick="selectRating(4)">
+                        <div class="star-icon">⭐⭐</div>
+                        <div class="star-label">Good</div>
+                    </div>
+                    <div class="star-option" data-value="3" onclick="selectRating(3)">
+                        <div class="star-icon">⭐⭐⭐</div>
+                        <div class="star-label">Average</div>
+                    </div>
+                    <div class="star-option" data-value="2" onclick="selectRating(2)">
+                        <div class="star-icon">⭐⭐⭐⭐</div>
+                        <div class="star-label">Poor</div>
+                    </div>
+                    <div class="star-option" data-value="1" onclick="selectRating(1)">
+                        <div class="star-icon">⭐⭐⭐⭐⭐</div>
+                        <div class="star-label">Very Poor</div>
+                    </div>
+                </div>
+
+                <!-- Hidden Select (for form submission) -->
+                <div class="mb-4">
+                    <label class="form-label fw-bold">Your Rating (1–5 stars)</label>
+                    <select name="rating" class="form-select form-select-lg" id="ratingSelect" required>
+                        <option value="" disabled selected>Select your rating...</option>
+                        <option value="5">5 - Excellent</option>
+                        <option value="4">4 - Good</option>
+                        <option value="3">3 - Average</option>
+                        <option value="2">2 - Poor</option>
+                        <option value="1">1 - Very Poor</option>
+                    </select>
+                </div>
+
+                <!-- Comment -->
+                <div class="mb-4">
+                    <label class="form-label fw-bold">Comment (optional)</label>
+                    <textarea name="comment" class="form-control form-control-lg" rows="4" 
+                              placeholder="Tell us about your experience... What went well? What could be improved?"></textarea>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="d-grid gap-3">
+                    <button type="submit" class="btn-rating">
+                        <i class="bi bi-send me-2"></i>Submit Rating
+                    </button>
+                    <a href="{{ url_for('my_requests') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-x-circle me-2"></i>Cancel
+                    </a>
+                </div>
+            </form>
         </div>
-
-        <button type="submit" class="btn btn-primary">Submit Rating</button>
-        <a href="{{ url_for('my_requests') }}" class="btn btn-secondary">Cancel</a>
-    </form>
+    </div>
 </div>
+
+<script>
+    // Visual star selection
+    function selectRating(value) {
+        // Update hidden select
+        const select = document.getElementById('ratingSelect');
+        select.value = value;
+        
+        // Update visual selection
+        const stars = document.querySelectorAll('.star-option');
+        stars.forEach(star => {
+            star.classList.remove('selected');
+            if (star.dataset.value == value) {
+                star.classList.add('selected');
+            }
+        });
+    }
+    
+    // Sync visual selection with select change
+    document.getElementById('ratingSelect').addEventListener('change', function(e) {
+        selectRating(this.value);
+    });
+    
+    // Form validation
+    document.querySelector('form').addEventListener('submit', function(e) {
+        const rating = document.getElementById('ratingSelect').value;
+        if (!rating) {
+            e.preventDefault();
+            alert('Please select a rating');
+        }
+    });
+    
+    // Auto-resize textarea
+    const textarea = document.querySelector('textarea');
+    if (textarea) {
+        textarea.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
+        });
+    }
+</script>
 {% endblock %}

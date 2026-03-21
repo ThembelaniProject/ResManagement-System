@@ -2,7 +2,7 @@
 <html lang="en" data-bs-theme="light">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <title>Users | Admin Panel</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
@@ -10,56 +10,333 @@
         :root {
             --sidebar-width: 280px;
             --sidebar-collapsed-width: 78px;
+            --sidebar-bg: #212529;
         }
-        body { min-height: 100vh; background: var(--bs-body-bg); }
-        .sidebar { position: fixed; inset: 0 auto 0 0; width: var(--sidebar-width); transition: width 0.35s ease; z-index: 1030; overflow-y: auto; background: var(--bs-dark); color: white; }
+        
+        * { box-sizing: border-box; }
+        
+        body { 
+            min-height: 100vh; 
+            background: var(--bs-body-bg);
+            overflow-x: hidden;
+            font-size: 14px;
+        }
+        
+        @media (min-width: 992px) {
+            body { font-size: 16px; }
+        }
+        
+        /* ========== SIDEBAR ========== */
+        .sidebar {
+            position: fixed;
+            inset: 0 auto 0 0;
+            width: var(--sidebar-width);
+            transition: all 0.35s ease;
+            z-index: 1030;
+            overflow-y: auto;
+            background: var(--sidebar-bg);
+            color: white;
+        }
+        
         .sidebar.collapsed { width: var(--sidebar-collapsed-width); }
-        .sidebar.collapsed .sidebar-text { display: none; }
+        .sidebar.collapsed .sidebar-text,
         .sidebar.collapsed .sidebar-header h4 { display: none; }
-        .main-content { margin-left: var(--sidebar-width); transition: margin-left 0.35s ease; }
+        
+        .sidebar .nav-link {
+            color: rgba(255,255,255,0.75);
+            padding: 0.75rem 1.25rem;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+        
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
+            background: rgba(255,255,255,0.15);
+            color: white;
+        }
+        
+        .sidebar .nav-link i {
+            font-size: 1.25rem;
+            width: 24px;
+            text-align: center;
+        }
+        
+        /* ========== MAIN CONTENT ========== */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            transition: margin-left 0.35s ease;
+            min-height: 100vh;
+        }
+        
         .main-content.collapsed { margin-left: var(--sidebar-collapsed-width); }
-        @media (max-width: 991.98px) { .sidebar { width: 0; } .sidebar.show { width: var(--sidebar-width); } .main-content { margin-left: 0 !important; } }
-        .table-responsive { max-height: 70vh; overflow-y: auto; }
-        .action-btn { font-size: 0.9rem; padding: 0.25rem 0.5rem; }
+        
+        /* Mobile styles */
+        @media (max-width: 991.98px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.35s ease;
+                box-shadow: 2px 0 20px rgba(0, 0, 0, 0.3);
+            }
+            
+            .sidebar.show {
+                transform: translateX(0);
+                width: 85vw;
+                max-width: 320px;
+            }
+            
+            .main-content { 
+                margin-left: 0 !important; 
+            }
+            
+            /* Backdrop overlay */
+            .sidebar-backdrop {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 1020;
+                display: none;
+                backdrop-filter: blur(3px);
+            }
+            
+            .sidebar-backdrop.show {
+                display: block;
+            }
+        }
+        
+        /* ========== TOPBAR ========== */
+        .topbar {
+            background: var(--bs-light);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            padding: 0.75rem 1.5rem;
+            position: sticky;
+            top: 0;
+            z-index: 1020;
+        }
+
+        /* Navbar right section - contains icons */
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        /* Hamburger button */
+        .hamburger-btn {
+            background: transparent;
+            border: none;
+            color: var(--bs-dark);
+            font-size: 1.5rem;
+            margin-right: 0.5rem;
+            padding: 0.5rem;
+            display: none;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: background-color 0.3s;
+        }
+        
+        .hamburger-btn:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+        
+        .hamburger-btn:active {
+            background-color: rgba(0, 0, 0, 0.1);
+        }
+        
+        @media (max-width: 991.98px) {
+            .hamburger-btn {
+                display: block;
+            }
+        }
+
+        /* Hide navbar icons on mobile */
+        @media (max-width: 768px) {
+            .topbar-right {
+                display: none !important;
+            }
+            
+            .topbar { 
+                padding: 0.5rem 1rem; 
+            }
+            
+            .hamburger-btn {
+                font-size: 1.3rem;
+                padding: 0.4rem;
+            }
+        }
+        
+        /* ========== TABLE STYLES ========== */
+        .table-container {
+            background: var(--bs-body-bg);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+            margin: 0 1.5rem 1.5rem 1.5rem;
+        }
+        
+        @media (max-width: 767px) {
+            .table-container { margin: 0 1rem 1rem 1rem; }
+        }
+        
+        .table {
+            margin-bottom: 0;
+        }
+        
+        .table thead th {
+            background: var(--bs-light);
+            font-weight: 600;
+            padding: 1rem;
+            white-space: nowrap;
+        }
+        
+        .table tbody td {
+            padding: 1rem;
+            vertical-align: middle;
+        }
+        
+        /* Mobile card view */
+        @media (max-width: 767px) {
+            .table thead { display: none; }
+            
+            .table tbody tr {
+                display: block;
+                border: 1px solid var(--bs-border-color);
+                border-radius: 12px;
+                margin-bottom: 1rem;
+                padding: 1rem;
+                background: var(--bs-body-bg);
+            }
+            
+            .table tbody td {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 0.5rem 0;
+                border: none;
+                font-size: 0.9rem;
+            }
+            
+            .table tbody td:before {
+                content: attr(data-label);
+                font-weight: 600;
+                color: var(--bs-secondary);
+                margin-right: 1rem;
+                min-width: 80px;
+            }
+            
+            .d-flex.gap-2 { justify-content: flex-end; }
+        }
+        
+        /* Badges */
+        .badge {
+            padding: 0.5rem 0.75rem;
+            border-radius: 30px;
+            font-weight: 500;
+        }
+        
+        /* Action buttons */
+        .action-btn {
+            font-size: 0.9rem;
+            padding: 0.4rem 0.8rem;
+        }
+        
+        @media (max-width: 767px) {
+            .action-btn { padding: 0.3rem 0.6rem; }
+        }
+        
+        /* Pagination */
+        .pagination {
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 0.25rem;
+            margin: 0 1.5rem 2rem 1.5rem;
+        }
+        
+        .page-link {
+            border-radius: 8px !important;
+            margin: 0 2px;
+            padding: 0.5rem 0.75rem;
+        }
+        
+        @media (max-width: 767px) {
+            .pagination { margin: 0 1rem 1.5rem 1rem; }
+            .page-link { padding: 0.4rem 0.6rem; font-size: 0.9rem; }
+        }
+        
+        /* Touch targets */
+        .touch-target {
+            min-height: 44px;
+            min-width: 44px;
+        }
+        
+        /* Page header */
+        .page-header {
+            margin: 1.5rem 1.5rem 1rem 1.5rem;
+        }
+        
+        @media (max-width: 767px) {
+            .page-header { margin: 1rem; }
+        }
+        
+        /* Breadcrumb */
+        .breadcrumb {
+            margin: 1.5rem 1.5rem 0 1.5rem;
+            background: none;
+            padding: 0;
+        }
+        
+        @media (max-width: 767px) {
+            .breadcrumb { margin: 1rem; }
+        }
     </style>
 </head>
 <body>
 
-<!-- Sidebar -->
-<nav class="sidebar" id="sidebar">
-    <div class="sidebar-header d-flex align-items-center justify-content-between p-4 border-bottom border-light border-opacity-10">
-        <h4 class="mb-0 sidebar-text">Admin Panel</h4>
-        <button id="sidebarToggle" class="btn btn-link text-white">
-            <i class="bi bi-list fs-4"></i>
-        </button>
-    </div>
-    <div class="p-3">
-        <ul class="nav flex-column gap-2">
-            <li class="nav-item">
-                <a class="nav-link text-white-75 d-flex align-items-center" href="{{ url_for('dashboard') }}">
-                    <i class="bi bi-speedometer2 fs-4 me-3"></i><span class="sidebar-text">Dashboard</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link active text-white d-flex align-items-center" href="{{ url_for('users') }}">
-                    <i class="bi bi-people fs-4 me-3"></i><span class="sidebar-text">Users</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link text-white-75 d-flex align-items-center" href="{{ url_for('requests') }}">
-                    <i class="bi bi-list-check fs-4 me-3"></i><span class="sidebar-text">Requests</span>
-                </a>
-            </li>
-            <li class="nav-item mt-auto pt-4">
-                <a class="nav-link text-white-75 d-flex align-items-center" href="{{ url_for('logout') }}">
-                    <i class="bi bi-box-arrow-right fs-4 me-3"></i><span class="sidebar-text">Logout</span>
-                </a>
-            </li>
-        </ul>
-    </div>
-</nav>
+    <!-- Sidebar Backdrop -->
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
 
-<div class="main-content" id="mainContent">
+    <!-- Sidebar -->
+    <nav class="sidebar" id="sidebar">
+        <div class="sidebar-header d-flex align-items-center justify-content-between p-4 border-bottom border-light border-opacity-10">
+            <h4 class="mb-0 sidebar-text">Admin Panel</h4>
+            <button class="btn btn-link text-white d-none d-lg-inline-block" id="sidebarCollapse">
+                <i class="bi bi-arrow-left-right fs-4"></i>
+            </button>
+            <button type="button" class="btn-close btn-close-white d-lg-none" id="sidebarClose" aria-label="Close"></button>
+        </div>
+        <div class="p-3">
+            <ul class="nav flex-column gap-2">
+                <li class="nav-item">
+                    <a class="nav-link d-flex align-items-center" href="{{ url_for('dashboard') }}" onclick="closeSidebarOnMobile()">
+                        <i class="bi bi-speedometer2 fs-4 me-3"></i>
+                        <span class="sidebar-text">Dashboard</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link active d-flex align-items-center" href="{{ url_for('users') }}" onclick="closeSidebarOnMobile()">
+                        <i class="bi bi-people fs-4 me-3"></i>
+                        <span class="sidebar-text">Users</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link d-flex align-items-center" href="{{ url_for('requests') }}" onclick="closeSidebarOnMobile()">
+                        <i class="bi bi-list-check fs-4 me-3"></i>
+                        <span class="sidebar-text">Requests</span>
+                    </a>
+                </li>
+                <li class="nav-item mt-auto pt-4">
+                    <a class="nav-link d-flex align-items-center" href="{{ url_for('logout') }}" onclick="closeSidebarOnMobile()">
+                        <i class="bi bi-box-arrow-right fs-4 me-3"></i>
+                        <span class="sidebar-text">Logout</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="main-content" id="mainContent">
 
     <!-- Topbar -->
     <header class="navbar navbar-expand-lg bg-white shadow-sm sticky-top px-4">
@@ -76,13 +353,13 @@
             </button>
             <div class="ms-auto d-flex align-items-center gap-3">
                 <div class="dropdown">
-                    <a class="d-flex align-items-center text-decoration-none dropdown-toggle" href="#" data-bs-toggle="dropdown">
-                        <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2" style="width:38px;height:38px;">
+                    <a class="d-flex align-items-center text-decoration-none dropdown-toggle touch-target" href="#" data-bs-toggle="dropdown">
+                        <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width:40px;height:40px;">
                             <i class="bi bi-person"></i>
                         </div>
-                        <div class="d-none d-md-block">
-                            <div>{{ current_user.full_name }}</div>
-                            <small class="text-muted">{{ current_user.role }}</small>
+                        <div class="d-none d-md-block ms-2">
+                            <span class="fw-bold small">{{ current_user.full_name }}</span>
+                            <span class="d-block text-muted small">{{ current_user.role }}</span>
                         </div>
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end shadow">
@@ -93,119 +370,233 @@
                     </ul>
                 </div>
             </div>
+        </header>
+
+        <!-- Breadcrumb -->
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}" class="text-decoration-none">Home</a></li>
+                <li class="breadcrumb-item active">Users</li>
+            </ol>
+        </nav>
+
+        <!-- Page Header -->
+        <div class="page-header d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+            <h1 class="h2 mb-0">Users Management</h1>
+            <a href="{{ url_for('add_user') }}" class="btn btn-primary d-flex align-items-center justify-content-center gap-2 shadow-sm touch-target">
+                <i class="bi bi-plus-lg"></i>Add New User
+            </a>
         </div>
-    </header>
 
-    <!-- Breadcrumb -->
-    <nav aria-label="breadcrumb" class="p-4 p-lg-5">
-        <ol class="breadcrumb mb-3">
-            <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Home</a></li>
-            <li class="breadcrumb-item active">Users</li>
-        </ol>
-    </nav>
-
-    <!-- Page Header -->
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 px-4 pb-3">
-        <h1 class="h2 mb-0">Users Management</h1>
-        <a href="{{ url_for('add_user') }}" class="btn btn-primary btn-lg d-flex align-items-center gap-2 shadow-sm">
-            <i class="bi bi-plus-lg fs-4"></i>Add New User
-        </a>
-    </div>
-
-    <!-- Users Table -->
-    <div class="card shadow border-0 mx-4 mb-5">
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th>ID</th>
-                            <th>Full Name</th>
-                            <th>Email</th>
-                            <th>Role</th>
-                            <th>Created At</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for user in users.items %}
-                        <tr>
-                            <td>{{ user.id }}</td>
-                            <td>{{ user.full_name }}</td>
-                            <td>{{ user.email }}</td>
-                            <td>
-                                <span class="badge bg-{{ 'primary' if user.role.lower() == 'admin' else 'success' if user.role.lower() == 'technician' else 'info' }}">
-                                    {{ user.role }}
-                                </span>
-                            </td>
-                            <td>{{ user.created_at | format_datetime }}</td>
-                            <td>
-                                {% if user.id != current_user.id %}
-                                <div class="d-flex gap-2">
-                                    <a href="{{ url_for('edit_user', user_id=user.id) }}" class="btn btn-sm btn-outline-primary action-btn">Edit</a>
-                                    <form action="{{ url_for('delete_user', user_id=user.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Delete {{ user.full_name }}?');">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger action-btn">Delete</button>
-                                    </form>
-                                </div>
-                                {% else %}
-                                <span class="text-muted fst-italic">Current user</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="6" class="text-center py-5 text-muted">
-                                <i class="bi bi-people fs-1 d-block mb-3 opacity-50"></i>
-                                No users found.
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-    <!-- Pagination -->
-    <nav class="px-4 mb-5">
-        <ul class="pagination justify-content-center">
-            {% if users.has_prev %}
-            <li class="page-item">
-                <a class="page-link" href="{{ url_for('users', page=users.prev_num) }}">Previous</a>
-            </li>
-            {% endif %}
-
-            {% for page_num in users.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
-                {% if page_num %}
-                    {% if page_num != users.page %}
-                    <li class="page-item"><a class="page-link" href="{{ url_for('users', page=page_num) }}">{{ page_num }}</a></li>
+        <!-- Users Table -->
+        <div class="table-container">
+            <table class="table" id="usersTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Full Name</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users.items %}
+                    <tr>
+                        <td data-label="ID">{{ user.id }}</td>
+                        <td data-label="Name"><strong>{{ user.full_name }}</strong></td>
+                        <td data-label="Email">{{ user.email }}</td>
+                        <td data-label="Role">
+                            <span class="badge bg-{{ 'primary' if user.role.lower() == 'admin' else 'success' if user.role.lower() in ['plumber','cleaner','electrician','technician','pest_controller'] else 'info' }}">
+                                {{ user.role }}
+                            </span>
+                        </td>
+                        <td data-label="Created">{{ user.created_at | format_datetime }}</td>
+                        <td data-label="Actions">
+                            {% if user.id != current_user.id %}
+                            <div class="d-flex gap-2">
+                                <a href="{{ url_for('edit_user', user_id=user.id) }}" class="btn btn-sm btn-outline-primary action-btn">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <form action="{{ url_for('delete_user', user_id=user.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Delete {{ user.full_name }}?');">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger action-btn">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                            {% else %}
+                            <span class="text-muted fst-italic small">Current user</span>
+                            {% endif %}
+                        </td>
+                    </tr>
                     {% else %}
-                    <li class="page-item active"><span class="page-link">{{ page_num }}</span></li>
-                    {% endif %}
-                {% else %}
-                <li class="page-item disabled"><span class="page-link">…</span></li>
+                    <tr>
+                        <td colspan="6" class="text-center py-5 text-muted">
+                            <i class="bi bi-people fs-1 d-block mb-3 opacity-50"></i>
+                            No users found.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if users.pages > 1 %}
+        <nav>
+            <ul class="pagination">
+                {% if users.has_prev %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('users', page=users.prev_num) }}">«</a>
+                </li>
                 {% endif %}
-            {% endfor %}
 
-            {% if users.has_next %}
-            <li class="page-item">
-                <a class="page-link" href="{{ url_for('users', page=users.next_num) }}">Next</a>
-            </li>
-            {% endif %}
-        </ul>
-    </nav>
+                {% for page_num in users.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                    {% if page_num %}
+                        <li class="page-item {% if page_num == users.page %}active{% endif %}">
+                            <a class="page-link" href="{{ url_for('users', page=page_num) }}">{{ page_num }}</a>
+                        </li>
+                    {% else %}
+                        <li class="page-item disabled"><span class="page-link">…</span></li>
+                    {% endif %}
+                {% endfor %}
 
-</div>
+                {% if users.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('users', page=users.next_num) }}">»</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script>
-    const sidebar = document.getElementById('sidebar');
-    const mainContent = document.getElementById('mainContent');
-    const sidebarToggle = document.getElementById('sidebarToggle');
-    sidebarToggle?.addEventListener('click', () => {
-        sidebar.classList.toggle('collapsed');
-        mainContent.classList.toggle('collapsed');
-    });
-</script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // Sidebar elements
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
+        const backdrop = document.getElementById('sidebarBackdrop');
+        const collapseBtn = document.getElementById('sidebarCollapse');
+        const hamburgerBtn = document.getElementById('hamburgerBtn');
+        const closeBtn = document.getElementById('sidebarClose');
+
+        // Function to open sidebar on mobile
+        function openSidebar() {
+            sidebar.classList.add('show');
+            backdrop.classList.add('show');
+            document.body.style.overflow = 'hidden'; // Prevent scrolling
+        }
+
+        // Function to close sidebar on mobile
+        function closeSidebar() {
+            sidebar.classList.remove('show');
+            backdrop.classList.remove('show');
+            document.body.style.overflow = ''; // Restore scrolling
+        }
+
+        // Global function to close sidebar on mobile when link is clicked
+        window.closeSidebarOnMobile = function() {
+            if (window.innerWidth < 992) {
+                closeSidebar();
+            }
+            return true; // Allow the link to navigate
+        };
+
+        // Desktop collapse/expand
+        if (collapseBtn) {
+            collapseBtn.addEventListener('click', () => {
+                sidebar.classList.toggle('collapsed');
+                mainContent.classList.toggle('collapsed');
+
+                const icon = collapseBtn.querySelector('i');
+                if (sidebar.classList.contains('collapsed')) {
+                    icon.classList.replace('bi-arrow-left-right', 'bi-arrow-right');
+                } else {
+                    icon.classList.replace('bi-arrow-right', 'bi-arrow-left-right');
+                }
+            });
+        }
+
+        // Mobile hamburger button
+        if (hamburgerBtn) {
+            hamburgerBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                openSidebar();
+            });
+        }
+
+        // Mobile close button
+        if (closeBtn) {
+            closeBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                closeSidebar();
+            });
+        }
+
+        // Close sidebar when clicking backdrop
+        if (backdrop) {
+            backdrop.addEventListener('click', function(e) {
+                e.preventDefault();
+                closeSidebar();
+            });
+        }
+
+        // Close sidebar when pressing Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && sidebar.classList.contains('show')) {
+                closeSidebar();
+            }
+        });
+
+        // Handle window resize
+        let resizeTimer;
+        window.addEventListener('resize', function() {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(function() {
+                if (window.innerWidth >= 992) {
+                    closeSidebar();
+                    document.body.style.overflow = '';
+                }
+            }, 250);
+        });
+
+        // Theme toggle
+        const themeToggle = document.getElementById('themeToggle');
+        themeToggle.addEventListener('click', function() {
+            const html = document.documentElement;
+            const icon = this.querySelector('i');
+            if (html.getAttribute('data-bs-theme') === 'light') {
+                html.setAttribute('data-bs-theme', 'dark');
+                icon.classList.replace('bi-moon-stars', 'bi-sun');
+            } else {
+                html.setAttribute('data-bs-theme', 'light');
+                icon.classList.replace('bi-sun', 'bi-moon-stars');
+            }
+        });
+
+        // Table search functionality (optional)
+        function searchTable() {
+            const input = document.getElementById('searchInput');
+            if (!input) return;
+            
+            const filter = input.value.toLowerCase();
+            const rows = document.querySelectorAll('#usersTable tbody tr');
+            
+            rows.forEach(row => {
+                const name = row.querySelector('td[data-label="Name"]')?.textContent.toLowerCase() || '';
+                const email = row.querySelector('td[data-label="Email"]')?.textContent.toLowerCase() || '';
+                
+                if (name.includes(filter) || email.includes(filter)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+    </script>
 </body>
 </html>

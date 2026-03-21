@@ -1,191 +1,485 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <title>Staff Dashboard - Res Maintenance System</title>
 
-<title>Staff Dashboard - Res Maintenance System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
 
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root {
+            --sidebar-bg: #f8f9fa;
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
 
-<style>
-.sidebar {
-    min-height: calc(100vh - 56px);
-    background: #f8f9fa;
-    border-right: 1px solid #dee2e6;
-}
+        * {
+            box-sizing: border-box;
+        }
 
-.nav-link {
-    color: #495057;
-    padding: 0.75rem 1.25rem;
-    transition: all 0.3s;
-}
+        body {
+            min-height: 100vh;
+            background: #f8f9fa;
+            overflow-x: hidden;
+            font-size: 14px;
+        }
 
-.nav-link:hover {
-    background: #e9ecef;
-}
+        @media (min-width: 992px) {
+            body {
+                font-size: 16px;
+            }
+        }
 
-.nav-link.active {
-    background: #0d6efd;
-    color: white !important;
-}
+        /* ========== SIDEBAR ========== */
+        .sidebar {
+            background: var(--sidebar-bg);
+            border-right: 1px solid #dee2e6;
+            width: 250px;
+            transition: all 0.3s ease;
+            min-height: calc(100vh - 56px);
+        }
 
-.status-assigned {
-    color: #0d6efd;
-    font-weight: 500;
-    padding: 5px 10px;
-    border-radius: 20px;
-    background: #e7f1ff;
-}
+        .sidebar.collapsed {
+            width: 70px;
+        }
 
-.status-progress {
-    color: #fd7e14;
-    font-weight: 500;
-    padding: 5px 10px;
-    border-radius: 20px;
-    background: #fff3e0;
-}
+        .sidebar.collapsed .nav-link span {
+            display: none;
+        }
 
-.status-completed {
-    color: #198754;
-    font-weight: 500;
-    padding: 5px 10px;
-    border-radius: 20px;
-    background: #d1e7dd;
-}
+        .sidebar.collapsed .nav-link i {
+            margin-right: 0;
+        }
 
-.status-pending {
-    color: #6c757d;
-    font-weight: 500;
-    padding: 5px 10px;
-    border-radius: 20px;
-    background: #e9ecef;
-}
+        .nav-link {
+            color: #495057;
+            padding: 0.75rem 1.25rem;
+            transition: all 0.3s;
+            white-space: nowrap;
+            border-radius: 8px;
+            margin: 0.25rem 0;
+        }
 
-.priority-badge {
-    padding: 3px 8px;
-    border-radius: 12px;
-    font-size: 0.8rem;
-    font-weight: 600;
-}
+        .nav-link:hover {
+            background: #e9ecef;
+        }
 
-.priority-normal {
-    background: #e9ecef;
-    color: #495057;
-}
+        .nav-link.active {
+            background: #0d6efd;
+            color: white !important;
+        }
 
-.priority-urgent {
-    background: #fff3cd;
-    color: #856404;
-}
+        .nav-link i {
+            width: 24px;
+            text-align: center;
+        }
 
-.priority-emergency {
-    background: #f8d7da;
-    color: #721c24;
-}
+        @media (max-width: 991.98px) {
+            .sidebar {
+                position: fixed;
+                left: 0;
+                top: 56px;
+                bottom: 0;
+                z-index: 1030;
+                transform: translateX(-100%);
+                box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            }
 
-.stat-card {
-    background: white;
-    border-radius: 12px;
-    padding: 20px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    transition: transform 0.2s;
-    height: 100%;
-}
+            .sidebar.show {
+                transform: translateX(0);
+            }
 
-.stat-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-}
+            .sidebar.collapsed {
+                width: 250px;
+            }
 
-.stat-icon {
-    width: 50px;
-    height: 50px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.5rem;
-    margin-bottom: 15px;
-}
+            .sidebar.collapsed .nav-link span {
+                display: inline;
+            }
 
-.stat-number {
-    font-size: 2rem;
-    font-weight: bold;
-    margin-bottom: 5px;
-}
+            .sidebar.collapsed .nav-link i {
+                margin-right: 0.5rem;
+            }
 
-.stat-label {
-    color: #6c757d;
-    font-size: 0.9rem;
-}
+            .main-content {
+                width: 100%;
+            }
+        }
 
-.role-badge {
-    display: inline-block;
-    padding: 5px 12px;
-    border-radius: 20px;
-    font-size: 0.85rem;
-    font-weight: 600;
-    margin-left: 10px;
-}
+        /* ========== MAIN CONTENT ========== */
+        .main-content {
+            flex: 1;
+            padding: 1.5rem;
+            overflow-x: hidden;
+        }
 
-.role-plumber { background: #17a2b8; color: white; }
-.role-cleaner { background: #28a745; color: white; }
-.role-electrician { background: #ffc107; color: #000; }
-.role-technician { background: #007bff; color: white; }
-.role-pest_controller { background: #dc3545; color: white; }
-.role-admin { background: #6f42c1; color: white; }
+        @media (max-width: 767px) {
+            .main-content {
+                padding: 1rem;
+            }
+        }
 
-.photo-thumbnail {
-    width: 40px;
-    height: 40px;
-    border-radius: 5px;
-    object-fit: cover;
-    cursor: pointer;
-}
+        /* ========== STAT CARDS ========== */
+        .stat-card {
+            background: white;
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+            transition: transform 0.3s, box-shadow 0.3s;
+            height: 100%;
+        }
 
-.request-card {
-    background: white;
-    border-radius: 12px;
-    padding: 20px;
-    margin-bottom: 20px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    border-left: 4px solid transparent;
-    transition: all 0.3s;
-}
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.1);
+        }
 
-.request-card:hover {
-    box-shadow: 0 5px 15px rgba(0,0,0,0.15);
-}
+        .stat-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
 
-.request-card.assigned { border-left-color: #0d6efd; }
-.request-card.in-progress { border-left-color: #fd7e14; }
-.request-card.completed { border-left-color: #198754; }
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 0.25rem;
+            line-height: 1.2;
+        }
 
-.quick-filter {
-    cursor: pointer;
-    transition: all 0.2s;
-}
+        .stat-label {
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
 
-.quick-filter:hover {
-    background: #e9ecef;
-}
+        @media (max-width: 767px) {
+            .stat-card {
+                padding: 1rem;
+            }
 
-.welcome-section {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border-radius: 15px;
-    padding: 25px;
-    margin-bottom: 25px;
-}
+            .stat-icon {
+                width: 40px;
+                height: 40px;
+                font-size: 1.2rem;
+            }
 
-/* Role-specific styles */
-[data-staff-role="plumber"] .welcome-section { background: linear-gradient(135deg, #17a2b8 0%, #0d6efd 100%); }
-[data-staff-role="cleaner"] .welcome-section { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); }
-[data-staff-role="electrician"] .welcome-section { background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%); }
-[data-staff-role="pest_controller"] .welcome-section { background: linear-gradient(135deg, #dc3545 0%, #b02a37 100%); }
-</style>
+            .stat-number {
+                font-size: 1.5rem;
+            }
+        }
+
+        /* ========== WELCOME SECTION ========== */
+        .welcome-section {
+            background: var(--primary-gradient);
+            color: white;
+            border-radius: 20px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        }
+
+        @media (max-width: 767px) {
+            .welcome-section {
+                padding: 1.5rem;
+            }
+
+            .welcome-section .row {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .welcome-section .text-end {
+                text-align: left !important;
+            }
+        }
+
+        /* Role-specific gradients */
+        [data-staff-role="plumber"] .welcome-section { background: linear-gradient(135deg, #17a2b8 0%, #0d6efd 100%); }
+        [data-staff-role="cleaner"] .welcome-section { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); }
+        [data-staff-role="electrician"] .welcome-section { background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%); }
+        [data-staff-role="technician"] .welcome-section { background: linear-gradient(135deg, #007bff 0%, #6610f2 100%); }
+        [data-staff-role="pest_controller"] .welcome-section { background: linear-gradient(135deg, #dc3545 0%, #b02a37 100%); }
+
+        /* ========== REQUEST CARDS ========== */
+        .request-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+            transition: all 0.3s;
+            border-left: 4px solid transparent;
+        }
+
+        .request-card:hover {
+            box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+        }
+
+        .request-card.assigned { border-left-color: #0d6efd; }
+        .request-card.in-progress { border-left-color: #fd7e14; }
+        .request-card.completed { border-left-color: #198754; }
+
+        @media (max-width: 767px) {
+            .request-card {
+                padding: 1rem;
+            }
+        }
+
+        /* ========== STATUS BADGES ========== */
+        .status-badge {
+            padding: 0.35rem 0.75rem;
+            border-radius: 30px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .status-assigned {
+            background: #e7f1ff;
+            color: #0d6efd;
+        }
+
+        .status-progress {
+            background: #fff3e0;
+            color: #fd7e14;
+        }
+
+        .status-in-progress {
+            background: #fff3e0;
+            color: #fd7e14;
+        }
+
+        .status-completed {
+            background: #d1e7dd;
+            color: #198754;
+        }
+
+        .status-pending {
+            background: #e9ecef;
+            color: #6c757d;
+        }
+
+        /* ========== PRIORITY BADGES ========== */
+        .priority-badge {
+            padding: 0.25rem 0.6rem;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+
+        .priority-normal {
+            background: #e9ecef;
+            color: #495057;
+        }
+
+        .priority-urgent {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .priority-emergency {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        /* ========== ROLE BADGES ========== */
+        .role-badge {
+            display: inline-block;
+            padding: 0.35rem 0.75rem;
+            border-radius: 30px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .role-plumber { background: #17a2b8; color: white; }
+        .role-cleaner { background: #28a745; color: white; }
+        .role-electrician { background: #ffc107; color: #000; }
+        .role-technician { background: #007bff; color: white; }
+        .role-pest_controller { background: #dc3545; color: white; }
+        .role-admin { background: #6f42c1; color: white; }
+
+        /* ========== PHOTO THUMBNAIL ========== */
+        .photo-thumbnail {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            object-fit: cover;
+            cursor: pointer;
+            transition: transform 0.2s;
+            border: 2px solid white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .photo-thumbnail:hover {
+            transform: scale(1.1);
+        }
+
+        /* ========== QUICK FILTERS ========== */
+        .quick-filter {
+            cursor: pointer;
+            transition: all 0.2s;
+            padding: 0.5rem 1rem;
+            border-radius: 30px;
+        }
+
+        .quick-filter:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 10px rgba(0,0,0,0.1);
+        }
+
+        .quick-filter.active {
+            background: #0d6efd !important;
+            color: white !important;
+        }
+
+        /* ========== TABLE STYLES ========== */
+        .table-container {
+            background: white;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+        }
+
+        .table {
+            margin-bottom: 0;
+        }
+
+        .table thead th {
+            background: #f8f9fa;
+            font-weight: 600;
+            padding: 1rem;
+            white-space: nowrap;
+        }
+
+        .table tbody td {
+            padding: 1rem;
+            vertical-align: middle;
+        }
+
+        /* Mobile card view for tasks */
+        @media (max-width: 767px) {
+            .table-container {
+                display: none;
+            }
+
+            .task-card {
+                background: white;
+                border-radius: 16px;
+                padding: 1.25rem;
+                margin-bottom: 1rem;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+                border-left: 4px solid transparent;
+            }
+
+            .task-card.assigned { border-left-color: #0d6efd; }
+            .task-card.in-progress { border-left-color: #fd7e14; }
+            .task-card.completed { border-left-color: #198754; }
+        }
+
+        @media (min-width: 768px) {
+            .mobile-task-view {
+                display: none;
+            }
+        }
+
+        /* ========== PROGRESS BAR ========== */
+        .progress {
+            height: 8px;
+            border-radius: 4px;
+        }
+
+        /* ========== TOUCH TARGETS ========== */
+        .touch-target {
+            min-height: 44px;
+            min-width: 44px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* ========== CARD COMPONENTS ========== */
+        .card {
+            border: none;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+        }
+
+        .card-header {
+            background: white;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            padding: 1.25rem 1.5rem;
+        }
+
+        .card-body {
+            padding: 1.5rem;
+        }
+
+        @media (max-width: 767px) {
+            .card-header {
+                padding: 1rem;
+            }
+
+            .card-body {
+                padding: 1rem;
+            }
+        }
+
+        /* ========== BUTTONS ========== */
+        .btn {
+            border-radius: 10px;
+            padding: 0.5rem 1rem;
+        }
+
+        .btn-sm {
+            padding: 0.4rem 0.8rem;
+        }
+
+        @media (max-width: 767px) {
+            .btn-sm {
+                padding: 0.35rem 0.6rem;
+                font-size: 0.8rem;
+            }
+        }
+
+        /* ========== FLASH MESSAGES ========== */
+        .alert {
+            border: none;
+            border-radius: 12px;
+            padding: 1rem 1.25rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+
+        @media (max-width: 767px) {
+            .alert {
+                padding: 0.75rem 1rem;
+                font-size: 0.9rem;
+            }
+        }
+
+        /* ========== MODAL ========== */
+        .modal-content {
+            border: none;
+            border-radius: 20px;
+            overflow: hidden;
+        }
+
+        @media (max-width: 767px) {
+            .modal-dialog {
+                margin: 0.5rem;
+            }
+            
+            .modal-content {
+                border-radius: 16px;
+            }
+        }
+    </style>
 </head>
 
 <body class="d-flex flex-column vh-100" data-staff-role="{{ current_user.role }}">
@@ -204,21 +498,12 @@
         
         <div class="dropdown">
             <a class="d-flex align-items-center text-decoration-none dropdown-toggle" href="#" data-bs-toggle="dropdown">
-                <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2" style="width:38px;height:38px; background-color: rgba(255,255,255,0.2) !important;">
+                <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width:40px;height:40px;">
                     <i class="bi bi-person"></i>
                 </div>
-                <div class="d-none d-md-block">
-                    <span class="text-white me-3">
-                        {{ current_user.full_name }} 
-                        <span class="role-badge role-{{ current_user.role }}">
-                            {% if current_user.role == 'plumber' %}🚰 Plumber
-                            {% elif current_user.role == 'cleaner' %}🧹 Cleaner
-                            {% elif current_user.role == 'electrician' %}⚡ Electrician
-                            {% elif current_user.role == 'technician' %}🔧 Technician
-                            {% elif current_user.role == 'pest_controller' %}🐜 Pest Controller
-                            {% else %}{{ current_user.role.title() }}
-                            {% endif %}
-                        </span>
+                <div class="d-none d-lg-block ms-2">
+                    <span class="text-white">
+                        {{ current_user.full_name }}
                     </span>
                 </div>
             </a>
@@ -232,411 +517,494 @@
     </div>
 </nav>
 
-<div class="d-flex flex-grow-1">
+<div class="d-flex flex-grow-1 position-relative">
 
-<!-- SIDEBAR -->
-<div class="sidebar col-2 p-3">
-    <ul class="nav flex-column">
-        <li class="nav-item">
-            <a class="nav-link {% if active_page=='dashboard' %}active{% endif %}" 
-               href="{{ url_for('dashboard') }}">
-                <i class="bi bi-house-door-fill me-2"></i>
-                Dashboard
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link {% if active_page=='assigned' %}active{% endif %}" 
-               href="{{ url_for('staff_assigned_work') }}">
-                <i class="bi bi-tools me-2"></i>
-                Assigned Work
-            </a>
-        </li>
-        <li class="nav-item mt-4 pt-4">
-            <a class="nav-link text-danger" href="{{ url_for('logout') }}">
-                <i class="bi bi-box-arrow-right me-2"></i>
-                Logout
-            </a>
-        </li>
-    </ul>
-</div>
+    <!-- SIDEBAR -->
+    <div class="sidebar p-3" id="sidebar">
+        <ul class="nav flex-column">
+            <li class="nav-item">
+                <a class="nav-link {% if active_page=='dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">
+                    <i class="bi bi-house-door-fill me-2"></i>
+                    <span>Dashboard</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if active_page=='assigned' %}active{% endif %}" href="{{ url_for('staff_assigned_work') }}">
+                    <i class="bi bi-tools me-2"></i>
+                    <span>Assigned Work</span>
+                </a>
+            </li>
+            <li class="nav-item mt-4 pt-4">
+                <a class="nav-link text-danger" href="{{ url_for('logout') }}">
+                    <i class="bi bi-box-arrow-right me-2"></i>
+                    <span>Logout</span>
+                </a>
+            </li>
+        </ul>
+    </div>
 
-<!-- MAIN CONTENT -->
-<main class="col p-4 bg-light">
+    <!-- MAIN CONTENT -->
+    <main class="main-content bg-light" id="mainContent">
 
-    <!-- Flash Messages -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                <div class="alert alert-{{ 'success' if category=='success' else 'danger' }} alert-dismissible fade show" role="alert">
-                    <i class="bi bi-{{ 'check-circle' if category=='success' else 'exclamation-triangle' }} me-2"></i>
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
-
-    {% if active_page == "assigned" %}
-        <!-- ASSIGNED WORK VIEW -->
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2 class="mb-0">
-                <i class="bi bi-tools me-2 text-primary"></i>
-                My Assigned Tasks
-            </h2>
-            <div>
-                <span class="badge bg-primary me-2">{{ requests|length }} Total</span>
-                <button class="btn btn-sm btn-outline-secondary" onclick="window.location.reload()">
-                    <i class="bi bi-arrow-repeat"></i>
-                </button>
-            </div>
-        </div>
-
-        <!-- Quick Stats for Assigned View -->
-        <div class="row g-3 mb-4">
-            <div class="col-md-4">
-                <div class="stat-card">
-                    <div class="stat-icon bg-primary bg-opacity-10 text-primary">
-                        <i class="bi bi-clipboard-check"></i>
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'success' if category=='success' else 'danger' }} alert-dismissible fade show" role="alert">
+                        <i class="bi bi-{{ 'check-circle' if category=='success' else 'exclamation-triangle' }} me-2"></i>
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
-                    <div class="stat-number">{{ requests|selectattr('status', 'equalto', 'Assigned')|list|length }}</div>
-                    <div class="stat-label">Assigned</div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="stat-card">
-                    <div class="stat-icon bg-warning bg-opacity-10 text-warning">
-                        <i class="bi bi-hourglass-split"></i>
-                    </div>
-                    <div class="stat-number">{{ requests|selectattr('status', 'equalto', 'In Progress')|list|length }}</div>
-                    <div class="stat-label">In Progress</div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="stat-card">
-                    <div class="stat-icon bg-success bg-opacity-10 text-success">
-                        <i class="bi bi-check-circle"></i>
-                    </div>
-                    <div class="stat-number">{{ requests|selectattr('status', 'equalto', 'Completed')|list|length }}</div>
-                    <div class="stat-label">Completed</div>
-                </div>
-            </div>
-        </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
 
-        <!-- Quick Filters -->
-        <div class="card mb-4 border-0 shadow-sm">
-            <div class="card-body">
-                <div class="d-flex gap-2 flex-wrap">
-                    <span class="badge bg-light text-dark p-3 quick-filter" onclick="filterTable('all')">
-                        <i class="bi bi-list-ul me-1"></i>All
-                    </span>
-                    <span class="badge bg-primary p-3 quick-filter" onclick="filterTable('Assigned')">
-                        <i class="bi bi-clipboard-check me-1"></i>Assigned
-                    </span>
-                    <span class="badge bg-warning p-3 quick-filter" onclick="filterTable('In Progress')">
-                        <i class="bi bi-hourglass-split me-1"></i>In Progress
-                    </span>
-                    <span class="badge bg-success p-3 quick-filter" onclick="filterTable('Completed')">
-                        <i class="bi bi-check-circle me-1"></i>Completed
-                    </span>
-                    <span class="badge bg-danger p-3 quick-filter" onclick="filterTable('Emergency')">
-                        <i class="bi bi-exclamation-triangle me-1"></i>Emergency
-                    </span>
-                </div>
-            </div>
-        </div>
-
-        {% if requests %}
-            <div class="table-responsive">
-                <table class="table table-bordered table-hover align-middle" id="tasksTable">
-                    <thead class="table-dark">
-                        <tr>
-                            <th>ID</th>
-                            <th>Room</th>
-                            <th>Category</th>
-                            <th>Description</th>
-                            <th>Photo</th>
-                            <th>Priority</th>
-                            <th>Student</th>
-                            <th>Reported On</th>
-                            <th>Status</th>
-                            <th>Update</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for req in requests %}
-                        <tr data-status="{{ req.status }}" data-priority="{{ req.priority }}">
-                            <td><span class="badge bg-secondary">#{{ req.id }}</span></td>
-                            <td><i class="bi bi-door-open me-1"></i>{{ req.room_number }}</td>
-                            <td>
-                                {% if req.category == 'plumber' %}
-                                    <span class="badge bg-info">🚰 Plumber</span>
-                                {% elif req.category == 'cleaner' %}
-                                    <span class="badge bg-success">🧹 Cleaner</span>
-                                {% elif req.category == 'electrician' %}
-                                    <span class="badge bg-warning text-dark">⚡ Electrician</span>
-                                {% elif req.category == 'technician' %}
-                                    <span class="badge bg-primary">🔧 Technician</span>
-                                {% elif req.category == 'pest_controller' %}
-                                    <span class="badge bg-danger">🐜 Pest Controller</span>
-                                {% else %}
-                                    <span class="badge bg-secondary">{{ req.category }}</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <span data-bs-toggle="tooltip" title="{{ req.description }}">
-                                    {{ req.description | truncate(40) }}
-                                </span>
-                            </td>
-                            <td>
-                                {% if req.photo_path %}
-                                    {% set photo_url = url_for('static', filename=req.photo_path) %}
-                                    <img src="{{ photo_url }}" 
-                                         class="photo-thumbnail" 
-                                         onclick="showPhoto('{{ photo_url }}')"
-                                         data-bs-toggle="modal" 
-                                         data-bs-target="#photoModal"
-                                         onerror="this.style.display='none'">
-                                {% else %}
-                                    <span class="text-muted">—</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <span class="priority-badge priority-{{ req.priority|lower }}">
-                                    {{ req.priority }}
-                                </span>
-                            </td>
-                            <td>
-                                <strong>{{ req.student_name }}</strong>
-                                <small class="d-block text-muted">{{ req.student_room }}</small>
-                            </td>
-                            <td>
-                                <small>{{ req.created_at | format_datetime('%d %b %Y %H:%M') }}</small>
-                            </td>
-                            <td>
-                                <span class="status-{{ req.status|lower|replace(' ', '-') }}">
-                                    {{ req.status }}
-                                </span>
-                            </td>
-                            <td>
-                                <form method="POST" action="{{ url_for('update_status', req_id=req.id) }}">
-                                    <select name="status" class="form-select form-select-sm mb-1">
-                                        <option value="Assigned" {% if req.status=='Assigned' %}selected{% endif %}>
-                                            Assigned
-                                        </option>
-                                        <option value="In Progress" {% if req.status=='In Progress' %}selected{% endif %}>
-                                            In Progress
-                                        </option>
-                                        <option value="Completed" {% if req.status=='Completed' %}selected{% endif %}>
-                                            Completed
-                                        </option>
-                                    </select>
-                                    <button type="submit" class="btn btn-primary btn-sm w-100">
-                                        <i class="bi bi-arrow-repeat me-1"></i>Update
-                                    </button>
-                                </form>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        {% else %}
-            <div class="card shadow-sm border-0">
-                <div class="card-body text-center p-5">
-                    <i class="bi bi-inbox fs-1 text-muted d-block mb-3"></i>
-                    <h4 class="text-muted">No Assigned Tasks</h4>
-                    <p class="text-muted mb-4">
-                        You don't have any {{ current_user.role.replace('_', ' ') }} tasks assigned at the moment.
-                    </p>
-                    <button class="btn btn-primary" onclick="window.location.reload()">
-                        <i class="bi bi-arrow-repeat me-2"></i>Refresh
+        {% if active_page == "assigned" %}
+            <!-- ASSIGNED WORK VIEW -->
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+                <h2 class="h2 mb-0">
+                    <i class="bi bi-tools me-2 text-primary"></i>
+                    My Assigned Tasks
+                </h2>
+                <div>
+                    <span class="badge bg-primary me-2 p-2">{{ requests|length }} Total</span>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="window.location.reload()">
+                        <i class="bi bi-arrow-repeat"></i>
                     </button>
                 </div>
             </div>
-        {% endif %}
 
-    {% else %}
-        <!-- DASHBOARD VIEW -->
-        
-        <!-- Welcome Section -->
-        <div class="welcome-section">
-            <div class="row align-items-center">
-                <div class="col-md-8">
-                    <h2 class="mb-2">Welcome back, {{ current_user.full_name }}! 👋</h2>
-                    <p class="mb-0 opacity-75">
-                        <i class="bi bi-tools me-2"></i>
-                        You are logged in as 
-                        <strong>
-                            {% if current_user.role == 'plumber' %}🚰 Plumber
-                            {% elif current_user.role == 'cleaner' %}🧹 Cleaner
-                            {% elif current_user.role == 'electrician' %}⚡ Electrician
-                            {% elif current_user.role == 'technician' %}🔧 Technician
-                            {% elif current_user.role == 'pest_controller' %}🐜 Pest Controller
-                            {% else %}{{ current_user.role.title() }}
-                            {% endif %}
-                        </strong>
-                    </p>
-                </div>
-                <div class="col-md-4 text-end">
-                    <div class="display-6">{{ now.strftime('%B %d, %Y') if now else '' }}</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Statistics Cards -->
-        <div class="row g-4 mb-4">
-            <div class="col-md-3">
-                <div class="stat-card">
-                    <div class="stat-icon bg-primary bg-opacity-10 text-primary">
-                        <i class="bi bi-clipboard-check"></i>
-                    </div>
-                    <div class="stat-number">{{ assigned_count|default(0) }}</div>
-                    <div class="stat-label">Assigned</div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="stat-card">
-                    <div class="stat-icon bg-warning bg-opacity-10 text-warning">
-                        <i class="bi bi-hourglass-split"></i>
-                    </div>
-                    <div class="stat-number">{{ in_progress_count|default(0) }}</div>
-                    <div class="stat-label">In Progress</div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="stat-card">
-                    <div class="stat-icon bg-success bg-opacity-10 text-success">
-                        <i class="bi bi-check-circle"></i>
-                    </div>
-                    <div class="stat-number">{{ completed_count|default(0) }}</div>
-                    <div class="stat-label">Completed</div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="stat-card">
-                    <div class="stat-icon bg-info bg-opacity-10 text-info">
-                        <i class="bi bi-clock-history"></i>
-                    </div>
-                    <div class="stat-number">{{ assigned_count|default(0) + in_progress_count|default(0) + completed_count|default(0) }}</div>
-                    <div class="stat-label">Total Tasks</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Quick Actions -->
-        <div class="row g-4 mb-4">
-            <div class="col-md-6">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-body">
-                        <h5 class="card-title">
-                            <i class="bi bi-tools me-2 text-primary"></i>
-                            Current Tasks
-                        </h5>
-                        <div class="mt-3">
-                            {% if assigned_count and assigned_count > 0 %}
-                                <p>You have <strong>{{ assigned_count }}</strong> new tasks assigned.</p>
-                                <a href="{{ url_for('staff_assigned_work') }}" class="btn btn-primary">
-                                    <i class="bi bi-arrow-right me-2"></i>View Assigned Tasks
-                                </a>
-                            {% else %}
-                                <p class="text-muted">No pending tasks. Good job! 👏</p>
-                            {% endif %}
+            <!-- Quick Stats for Assigned View -->
+            <div class="row g-3 mb-4">
+                <div class="col-6 col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-icon bg-primary bg-opacity-10 text-primary">
+                            <i class="bi bi-clipboard-check"></i>
                         </div>
+                        <div class="stat-number">{{ requests|selectattr('status', 'equalto', 'Assigned')|list|length }}</div>
+                        <div class="stat-label">Assigned</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-icon bg-warning bg-opacity-10 text-warning">
+                            <i class="bi bi-hourglass-split"></i>
+                        </div>
+                        <div class="stat-number">{{ requests|selectattr('status', 'equalto', 'In Progress')|list|length }}</div>
+                        <div class="stat-label">In Progress</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-icon bg-success bg-opacity-10 text-success">
+                            <i class="bi bi-check-circle"></i>
+                        </div>
+                        <div class="stat-number">{{ requests|selectattr('status', 'equalto', 'Completed')|list|length }}</div>
+                        <div class="stat-label">Completed</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-icon bg-info bg-opacity-10 text-info">
+                            <i class="bi bi-exclamation-triangle"></i>
+                        </div>
+                        <div class="stat-number">{{ requests|selectattr('priority', 'equalto', 'Emergency')|list|length }}</div>
+                        <div class="stat-label">Emergency</div>
                     </div>
                 </div>
             </div>
-            <div class="col-md-6">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-body">
-                        <h5 class="card-title">
-                            <i class="bi bi-graph-up me-2 text-success"></i>
-                            Performance
-                        </h5>
-                        <div class="mt-3">
-                            <div class="mb-2">
-                                <span>Completion Rate</span>
-                                <span class="float-end">
-                                    {% set total_tasks = assigned_count|default(0) + in_progress_count|default(0) + completed_count|default(0) %}
-                                    {% if total_tasks > 0 %}
-                                        {% set completion_pct = (completed_count|default(0) / total_tasks * 100) | round %}
-                                        {{ completion_pct }}%
+
+            <!-- Quick Filters -->
+            <div class="card mb-4 border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex gap-2 flex-wrap">
+                        <span class="badge bg-light text-dark p-3 quick-filter active" onclick="filterTasks('all', this)">
+                            <i class="bi bi-list-ul me-1"></i>All
+                        </span>
+                        <span class="badge bg-primary p-3 quick-filter" onclick="filterTasks('Assigned', this)">
+                            <i class="bi bi-clipboard-check me-1"></i>Assigned
+                        </span>
+                        <span class="badge bg-warning p-3 quick-filter" onclick="filterTasks('In Progress', this)">
+                            <i class="bi bi-hourglass-split me-1"></i>In Progress
+                        </span>
+                        <span class="badge bg-success p-3 quick-filter" onclick="filterTasks('Completed', this)">
+                            <i class="bi bi-check-circle me-1"></i>Completed
+                        </span>
+                        <span class="badge bg-danger p-3 quick-filter" onclick="filterTasks('Emergency', this)">
+                            <i class="bi bi-exclamation-triangle me-1"></i>Emergency
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            {% if requests %}
+                <!-- Desktop Table View -->
+                <div class="table-container d-none d-md-block">
+                    <table class="table table-hover" id="tasksTable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Room</th>
+                                <th>Category</th>
+                                <th>Description</th>
+                                <th>Photo</th>
+                                <th>Priority</th>
+                                <th>Student</th>
+                                <th>Reported</th>
+                                <th>Status</th>
+                                <th>Update</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for req in requests %}
+                            <tr data-status="{{ req.status }}" data-priority="{{ req.priority }}">
+                                <td><span class="badge bg-secondary">#{{ req.id }}</span></td>
+                                <td><i class="bi bi-door-open me-1"></i>{{ req.room_number }}</td>
+                                <td>
+                                    {% if req.category == 'plumber' %}
+                                        <span class="badge bg-info">🚰 Plumber</span>
+                                    {% elif req.category == 'cleaner' %}
+                                        <span class="badge bg-success">🧹 Cleaner</span>
+                                    {% elif req.category == 'electrician' %}
+                                        <span class="badge bg-warning text-dark">⚡ Electrician</span>
+                                    {% elif req.category == 'technician' %}
+                                        <span class="badge bg-primary">🔧 Technician</span>
+                                    {% elif req.category == 'pest_controller' %}
+                                        <span class="badge bg-danger">🐜 Pest Controller</span>
                                     {% else %}
-                                        {% set completion_pct = 0 %}
-                                        0%
+                                        <span class="badge bg-secondary">{{ req.category }}</span>
                                     {% endif %}
-                                </span>
-                        <div class="progress">
-    {% set total_tasks = assigned_count|default(0) + in_progress_count|default(0) + completed_count|default(0) %}
-    <div class="progress-bar bg-success" role="progressbar" 
-         {% if total_tasks > 0 %}
-         style="width: {{ (completed_count|default(0) / total_tasks * 100) | round }}%;" 
-         aria-valuenow="{{ (completed_count|default(0) / total_tasks * 100) | round }}"
-         {% else %}
-         style="width: 0%;"
-         aria-valuenow="0"
-         {% endif %}
-         aria-valuemin="0" 
-         aria-valuemax="100">
-    </div>
-</div>
-                        </div>
-                    </div>
+                                </td>
+                                <td>
+                                    <span data-bs-toggle="tooltip" title="{{ req.description }}">
+                                        {{ req.description | truncate(30) }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if req.photo_path %}
+                                        {% set photo_url = url_for('static', filename=req.photo_path) %}
+                                        <img src="{{ photo_url }}" 
+                                             class="photo-thumbnail" 
+                                             onclick="showPhoto('{{ photo_url }}')"
+                                             data-bs-toggle="modal" 
+                                             data-bs-target="#photoModal"
+                                             onerror="this.style.display='none'">
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="priority-badge priority-{{ req.priority|lower }}">
+                                        {{ req.priority }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <strong>{{ req.student_name }}</strong>
+                                    <small class="d-block text-muted">{{ req.student_room }}</small>
+                                </td>
+                                <td>
+                                    <small>{{ req.created_at | format_datetime('%d %b %Y') }}</small>
+                                </td>
+                                <td>
+                                    <span class="status-badge status-{{ req.status|lower|replace(' ', '-') }}">
+                                        {{ req.status }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <form method="POST" action="{{ url_for('update_status', req_id=req.id) }}">
+                                        <select name="status" class="form-select form-select-sm mb-1">
+                                            <option value="Assigned" {% if req.status=='Assigned' %}selected{% endif %}>Assigned</option>
+                                            <option value="In Progress" {% if req.status=='In Progress' %}selected{% endif %}>In Progress</option>
+                                            <option value="Completed" {% if req.status=='Completed' %}selected{% endif %}>Completed</option>
+                                        </select>
+                                        <button type="submit" class="btn btn-primary btn-sm w-100">
+                                            <i class="bi bi-arrow-repeat me-1"></i>Update
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
-            </div>
-        </div>
 
-        <!-- Recent Tasks -->
-        {% if requests %}
-        <div class="card shadow-sm border-0">
-            <div class="card-header bg-white py-3">
-                <h5 class="card-title mb-0">
-                    <i class="bi bi-clock-history me-2 text-primary"></i>
-                    Recent Tasks
-                </h5>
-            </div>
-            <div class="card-body">
-                {% for req in requests[:5] %}
-                <div class="request-card {{ req.status.lower().replace(' ', '-') }}">
-                    <div class="d-flex justify-content-between align-items-start mb-2">
-                        <div>
-                            <span class="badge bg-secondary">#{{ req.id }}</span>
-                            <span class="ms-2 fw-bold">{{ req.room_number }}</span>
+                <!-- Mobile Card View -->
+                <div class="mobile-task-view d-block d-md-none" id="mobileTaskView">
+                    {% for req in requests %}
+                    <div class="task-card {{ req.status.lower().replace(' ', '-') }}" data-status="{{ req.status }}" data-priority="{{ req.priority }}">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <span class="badge bg-secondary">#{{ req.id }}</span>
+                                <span class="ms-2 fw-bold">{{ req.room_number }}</span>
+                            </div>
+                            <span class="priority-badge priority-{{ req.priority|lower }}">
+                                {{ req.priority }}
+                            </span>
                         </div>
-                        <span class="priority-badge priority-{{ req.priority|lower }}">
-                            {{ req.priority }}
-                        </span>
+
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="badge 
+                                {% if req.category == 'plumber' %}bg-info
+                                {% elif req.category == 'cleaner' %}bg-success
+                                {% elif req.category == 'electrician' %}bg-warning text-dark
+                                {% elif req.category == 'technician' %}bg-primary
+                                {% elif req.category == 'pest_controller' %}bg-danger
+                                {% else %}bg-secondary{% endif %}">
+                                {% if req.category == 'plumber' %}🚰 Plumber
+                                {% elif req.category == 'cleaner' %}🧹 Cleaner
+                                {% elif req.category == 'electrician' %}⚡ Electrician
+                                {% elif req.category == 'technician' %}🔧 Technician
+                                {% elif req.category == 'pest_controller' %}🐜 Pest Controller
+                                {% else %}{{ req.category }}{% endif %}
+                            </span>
+                            <span class="status-badge status-{{ req.status|lower|replace(' ', '-') }}">
+                                {{ req.status }}
+                            </span>
+                        </div>
+
+                        <p class="mb-2">{{ req.description | truncate(60) }}</p>
+
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="bi bi-person-circle me-2"></i>
+                            <div>
+                                <strong>{{ req.student_name }}</strong>
+                                <small class="d-block text-muted">{{ req.student_room }}</small>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <small class="text-muted">
+                                <i class="bi bi-calendar me-1"></i>
+                                {{ req.created_at | format_datetime('%d %b %Y') }}
+                            </small>
+                            {% if req.photo_path %}
+                                {% set photo_url = url_for('static', filename=req.photo_path) %}
+                                <img src="{{ photo_url }}" 
+                                     class="photo-thumbnail" 
+                                     onclick="showPhoto('{{ photo_url }}')"
+                                     data-bs-toggle="modal" 
+                                     data-bs-target="#photoModal"
+                                     style="width: 40px; height: 40px;">
+                            {% endif %}
+                        </div>
+
+                        <form method="POST" action="{{ url_for('update_status', req_id=req.id) }}" class="mt-3">
+                            <div class="row g-2">
+                                <div class="col-8">
+                                    <select name="status" class="form-select form-select-sm">
+                                        <option value="Assigned" {% if req.status=='Assigned' %}selected{% endif %}>Assigned</option>
+                                        <option value="In Progress" {% if req.status=='In Progress' %}selected{% endif %}>In Progress</option>
+                                        <option value="Completed" {% if req.status=='Completed' %}selected{% endif %}>Completed</option>
+                                    </select>
+                                </div>
+                                <div class="col-4">
+                                    <button type="submit" class="btn btn-primary btn-sm w-100">
+                                        <i class="bi bi-arrow-repeat"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
                     </div>
-                    
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span class="badge bg-light text-dark">
-                            <i class="bi bi-person-circle me-1"></i>{{ req.student_name }}
-                        </span>
-                        <span class="status-{{ req.status.lower().replace(' ', '-') }}">
-                            {{ req.status }}
-                        </span>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <!-- Empty State -->
+                <div class="card shadow-sm border-0">
+                    <div class="card-body text-center p-5">
+                        <i class="bi bi-inbox fs-1 text-muted d-block mb-3"></i>
+                        <h4 class="text-muted">No Assigned Tasks</h4>
+                        <p class="text-muted mb-4">
+                            You don't have any {{ current_user.role.replace('_', ' ') }} tasks assigned at the moment.
+                        </p>
+                        <button class="btn btn-primary" onclick="window.location.reload()">
+                            <i class="bi bi-arrow-repeat me-2"></i>Refresh
+                        </button>
                     </div>
-                    
-                    <p class="text-muted small mb-2">{{ req.description | truncate(80) }}</p>
-                    
-                    <small class="text-muted">
-                        <i class="bi bi-calendar me-1"></i>
-                        {{ req.created_at | format_datetime('%d %b %Y %H:%M') }}
-                    </small>
                 </div>
-                {% endfor %}
-                
-                {% if requests|length > 5 %}
-                <div class="text-center mt-3">
-                    <a href="{{ url_for('staff_assigned_work') }}" class="btn btn-outline-primary">
-                        View All Tasks <i class="bi bi-arrow-right ms-2"></i>
-                    </a>
+            {% endif %}
+
+        {% else %}
+            <!-- DASHBOARD VIEW -->
+
+            <!-- Welcome Section -->
+            <div class="welcome-section">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h2 class="mb-2">Welcome back, {{ current_user.full_name }}! 👋</h2>
+                        <p class="mb-0 opacity-75">
+                            <i class="bi bi-tools me-2"></i>
+                            You are logged in as 
+                            <span class="role-badge role-{{ current_user.role }}">
+                                {% if current_user.role == 'plumber' %}🚰 Plumber
+                                {% elif current_user.role == 'cleaner' %}🧹 Cleaner
+                                {% elif current_user.role == 'electrician' %}⚡ Electrician
+                                {% elif current_user.role == 'technician' %}🔧 Technician
+                                {% elif current_user.role == 'pest_controller' %}🐜 Pest Controller
+                                {% else %}{{ current_user.role.title() }}
+                                {% endif %}
+                            </span>
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-md-end">
+                        <div class="h4 mb-0">{{ now.strftime('%B %d, %Y') if now else '' }}</div>
+                    </div>
                 </div>
-                {% endif %}
             </div>
-        </div>
+
+            <!-- Statistics Cards -->
+            <div class="row g-3 g-md-4 mb-4">
+                <div class="col-6 col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-icon bg-primary bg-opacity-10 text-primary">
+                            <i class="bi bi-clipboard-check"></i>
+                        </div>
+                        <div class="stat-number">{{ assigned_count|default(0) }}</div>
+                        <div class="stat-label">Assigned</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-icon bg-warning bg-opacity-10 text-warning">
+                            <i class="bi bi-hourglass-split"></i>
+                        </div>
+                        <div class="stat-number">{{ in_progress_count|default(0) }}</div>
+                        <div class="stat-label">In Progress</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-icon bg-success bg-opacity-10 text-success">
+                            <i class="bi bi-check-circle"></i>
+                        </div>
+                        <div class="stat-number">{{ completed_count|default(0) }}</div>
+                        <div class="stat-label">Completed</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-icon bg-info bg-opacity-10 text-info">
+                            <i class="bi bi-clock-history"></i>
+                        </div>
+                        <div class="stat-number">{{ assigned_count|default(0) + in_progress_count|default(0) + completed_count|default(0) }}</div>
+                        <div class="stat-label">Total Tasks</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="row g-3 g-md-4 mb-4">
+                <div class="col-md-6">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                <i class="bi bi-tools me-2 text-primary"></i>
+                                Current Tasks
+                            </h5>
+                            <div class="mt-3">
+                                {% if assigned_count and assigned_count > 0 %}
+                                    <p>You have <strong>{{ assigned_count }}</strong> new tasks assigned.</p>
+                                    <a href="{{ url_for('staff_assigned_work') }}" class="btn btn-primary">
+                                        <i class="bi bi-arrow-right me-2"></i>View Assigned Tasks
+                                    </a>
+                                {% else %}
+                                    <p class="text-muted">No pending tasks. Good job! 👏</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                <i class="bi bi-graph-up me-2 text-success"></i>
+                                Performance
+                            </h5>
+                            <div class="mt-3">
+                                {% set total_tasks = assigned_count|default(0) + in_progress_count|default(0) + completed_count|default(0) %}
+                                {% if total_tasks > 0 %}
+                                    {% set completion_pct = (completed_count|default(0) / total_tasks * 100) | round %}
+                                {% else %}
+                                    {% set completion_pct = 0 %}
+                                {% endif %}
+                                
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Completion Rate</span>
+                                    <span class="fw-bold">{{ completion_pct }}%</span>
+                                </div>
+                                <div class="progress">
+                                    <div class="progress-bar bg-success" role="progressbar" 
+                                         style="width: {{ completion_pct }}%;" 
+                                         aria-valuenow="{{ completion_pct }}" 
+                                         aria-valuemin="0" 
+                                         aria-valuemax="100">
+                                    </div>
+                                </div>
+                                
+                                <div class="mt-3">
+                                    <small class="text-muted">
+                                        <i class="bi bi-check-circle-fill text-success me-1"></i>
+                                        {{ completed_count|default(0) }} completed out of {{ total_tasks }} total
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Tasks -->
+            {% if requests %}
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white py-3">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-clock-history me-2 text-primary"></i>
+                        Recent Tasks
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% for req in requests[:5] %}
+                    <div class="request-card {{ req.status.lower().replace(' ', '-') }}">
+                        <div class="d-flex flex-wrap justify-content-between align-items-start mb-2">
+                            <div>
+                                <span class="badge bg-secondary">#{{ req.id }}</span>
+                                <span class="ms-2 fw-bold">{{ req.room_number }}</span>
+                            </div>
+                            <span class="priority-badge priority-{{ req.priority|lower }}">
+                                {{ req.priority }}
+                            </span>
+                        </div>
+
+                        <div class="d-flex flex-wrap justify-content-between align-items-center mb-2">
+                            <span class="badge bg-light text-dark">
+                                <i class="bi bi-person-circle me-1"></i>{{ req.student_name }}
+                            </span>
+                            <span class="status-badge status-{{ req.status.lower().replace(' ', '-') }}">
+                                {{ req.status }}
+                            </span>
+                        </div>
+
+                        <p class="text-muted small mb-2">{{ req.description | truncate(60) }}</p>
+
+                        <small class="text-muted">
+                            <i class="bi bi-calendar me-1"></i>
+                            {{ req.created_at | format_datetime('%d %b %Y %H:%M') }}
+                        </small>
+                    </div>
+                    {% endfor %}
+
+                    {% if requests|length > 5 %}
+                    <div class="text-center mt-3">
+                        <a href="{{ url_for('staff_assigned_work') }}" class="btn btn-outline-primary">
+                            View All Tasks <i class="bi bi-arrow-right ms-2"></i>
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
         {% endif %}
-    {% endif %}
-</main>
+    </main>
 </div>
 
 <!-- Photo Modal -->
@@ -651,7 +1019,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body text-center">
-                <img src="" id="modalPhoto" class="img-fluid" alt="Request photo" style="max-height: 80vh;">
+                <img src="" id="modalPhoto" class="img-fluid" alt="Request photo" style="max-height: 70vh;">
             </div>
         </div>
     </div>
@@ -660,41 +1028,78 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
-// Tooltips
-var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
-var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-    return new bootstrap.Tooltip(tooltipTriggerEl)
-});
+    // Tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl)
+    });
 
-// Photo modal
-function showPhoto(src) {
-    document.getElementById('modalPhoto').src = src;
-}
+    // Photo modal
+    function showPhoto(src) {
+        document.getElementById('modalPhoto').src = src;
+    }
 
-// Filter table function
-function filterTable(filter) {
-    const rows = document.querySelectorAll('#tasksTable tbody tr');
+    // Sidebar functionality
+    const sidebar = document.getElementById('sidebar');
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    const sidebarCollapse = document.getElementById('sidebarCollapse');
     
-    rows.forEach(row => {
-        if (filter === 'all') {
-            row.style.display = '';
-        } else if (filter === 'Emergency') {
-            const priority = row.dataset.priority;
-            row.style.display = priority === filter ? '' : 'none';
-        } else {
-            const status = row.dataset.status;
-            row.style.display = status === filter ? '' : 'none';
+    if (sidebarToggle) {
+        sidebarToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('show');
+        });
+    }
+    
+    if (sidebarCollapse) {
+        sidebarCollapse.addEventListener('click', () => {
+            sidebar.classList.toggle('collapsed');
+        });
+    }
+    
+    // Close sidebar when clicking outside on mobile
+    document.addEventListener('click', (event) => {
+        if (window.innerWidth < 992) {
+            const isClickInside = sidebar.contains(event.target) || sidebarToggle.contains(event.target);
+            if (!isClickInside && sidebar.classList.contains('show')) {
+                sidebar.classList.remove('show');
+            }
         }
     });
-    
-    // Update active filter badge
-    document.querySelectorAll('.quick-filter').forEach(badge => {
-        badge.classList.remove('active');
-    });
-    if (event && event.target) {
-        event.target.classList.add('active');
+
+    // Filter table function
+    function filterTasks(filter, element) {
+        // Update active state
+        document.querySelectorAll('.quick-filter').forEach(el => {
+            el.classList.remove('active');
+        });
+        element.classList.add('active');
+        
+        // Filter rows
+        const rows = document.querySelectorAll('#tasksTable tbody tr, .task-card');
+        
+        rows.forEach(row => {
+            if (filter === 'all') {
+                row.style.display = '';
+            } else if (filter === 'Emergency') {
+                const priority = row.dataset.priority;
+                row.style.display = priority === filter ? '' : 'none';
+            } else {
+                const status = row.dataset.status;
+                row.style.display = status === filter ? '' : 'none';
+            }
+        });
     }
-}
+
+    // Handle window resize
+    let resizeTimer;
+    window.addEventListener('resize', function() {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(function() {
+            if (window.innerWidth >= 992) {
+                sidebar.classList.remove('show');
+            }
+        }, 250);
+    });
 </script>
 
 </body>
