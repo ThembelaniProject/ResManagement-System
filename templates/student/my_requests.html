@@ -512,144 +512,127 @@
     </div>
 
    <!-- Main Content -->
-    <div class="col-10 p-4">
-
-        <div class="d-flex justify-content-between mb-3">
-            <h3>My Requests</h3>
-            <a href="{{ url_for('new_request') }}" class="btn btn-primary btn-sm">
-                <i class="bi bi-plus-circle me-1"></i>New
+   <main class="col-12 col-md-9 col-lg-10 p-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="mb-0">My Requests</h2>
+            <a href="{{ url_for('new_request') }}" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-1"></i> New Request
             </a>
         </div>
-        <h3 class="mb-4">My Requests</h3>
 
-        <table class="table table-bordered table-hover align-middle">
-            <thead class="table-light">
-        <table class="table table-bordered table-hover">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Room</th>
-                    <th>Description</th>
-                    <th>Photo</th>
-                    <th>Status</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'success' if category=='success' else 'danger' }} alert-dismissible fade show">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
 
-            <tbody>
-                {% for req in requests %}
-                <tr>
-                    <td>#{{ req.id }}</td>
-                    <td>{{ req.room_number }}</td>
+        {% if requests %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>Room</th>
+                            <th>Description</th>
+                            <th>Photo</th>
+                            <th>Status</th>
+                            <th>Rating</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for req in requests %}
+                        <tr>
+                            <td>#{{ req.id }}</td>
+                            <td>{{ req.room_number }}</td>
+                            <td>{{ req.description|truncate(120) }}</td>
 
-                    <td>
-                        {{ req.description }}
+                            <!-- Photo -->
+                            <td>
+                                {% if req.photo_path %}
+                                    <img src="{{ req.photo_path if req.photo_path.startswith('http') else url_for('static', filename=req.photo_path) }}"
+                                         class="photo-thumbnail"
+                                         alt="Request photo"
+                                         onclick="showPhoto('{{ req.photo_path if req.photo_path.startswith('http') else url_for('static', filename=req.photo_path) }}')"
+                                         data-bs-toggle="modal" data-bs-target="#photoModal">
+                                {% else %}
+                                    <span class="text-muted">No photo</span>
+                                {% endif %}
+                            </td>
 
-                        {% if req.status == "Completed" %}
-                        <div class="mt-2">
+                            <!-- Status -->
+                            <td>
+                                <span class="badge rounded-pill status-badge
+                                    {% if req.status == 'Pending' %}bg-warning text-dark
+                                    {% elif req.status == 'Assigned' %}bg-info text-white
+                                    {% elif req.status == 'In Progress' %}bg-primary text-white
+                                    {% elif req.status == 'Completed' %}bg-success text-white
+                                    {% else %}bg-secondary text-white{% endif %}">
+                                    {{ req.status }}
+                                </span>
+                            </td>
 
-                            {% if req.rating %}
-                                <div class="stars">
-                                    {% for i in range(req.rating) %}
-                                        ★
-                                    {% endfor %}
-                                    {% for i in range(5 - req.rating) %}
-                                        ☆
-                                    {% endfor %}
-                                    ({{ req.rating }}/5)
-                                </div>
-
-                                {% if req.rating_comment %}
-                                    <small class="text-muted">{{ req.rating_comment }}</small>
-                            <div class="mt-2">
-                                {% if req.rating %}
-                                    ⭐ {{ req.rating }}/5
-                                    {% if req.rating_comment %}
-                                        <br><small>{{ req.rating_comment }}</small>
+                            <!-- Rating -->
+                            <td>
+                                {% if req.status == 'Completed' %}
+                                    {% if req.rating %}
+                                        <div class="rating-stars">
+                                            {% for _ in range(req.rating) %}★{% endfor %}
+                                            {% for _ in range(5 - req.rating) %}☆{% endfor %}
+                                            <small class="text-muted ms-2">({{ req.rating }}/5)</small>
+                                        </div>
+                                        {% if req.rating_comment %}
+                                            <small class="text-muted d-block mt-1">"{{ req.rating_comment }}"</small>
+                                        {% endif %}
+                                    {% else %}
+                                        <a href="{{ url_for('rate_request', request_id=req.id) }}"
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-star me-1"></i> Rate
+                                        </a>
                                     {% endif %}
                                 {% else %}
-                                    <a href="{{ url_for('rate_request', request_id=req.id) }}"
-                                       class="btn btn-sm btn-outline-primary mt-1">
-                                       Rate
-                                    </a>
+                                    <span class="text-muted">—</span>
                                 {% endif %}
+                            </td>
 
-                            {% else %}
-                                <a href="{{ url_for('rate_request', request_id=req.id) }}"
-                                   class="btn btn-sm btn-outline-primary mt-1">
-                                   ⭐ Rate this job
-                                </a>
-                            {% endif %}
-
-                        </div>
-                            </div>
-                        {% endif %}
-                    </td>
-
-                    <!-- IMAGE FIX -->
-                    <!-- ✅ FIXED IMAGE DISPLAY -->
-                    <td>
-                        {% if req.photo_path %}
-                            {% if req.photo_path.startswith('http') %}
-                                <!-- Cloud Image -->
-                                <img src="{{ req.photo_path }}"
-                                     class="photo-thumbnail"
-                                     loading="lazy"
-                                     onclick="showPhoto('{{ req.photo_path }}')"
-                                     data-bs-toggle="modal"
-                                     data-bs-target="#photoModal">
-                            {% else %}
-                                <!-- Local Image -->
-                                <img src="{{ url_for('static', filename=req.photo_path) }}"
-                                     class="photo-thumbnail"
-                                     loading="lazy"
-                                     onclick="showPhoto('{{ url_for('static', filename=req.photo_path) }}')"
-                                     data-bs-toggle="modal"
-                                     data-bs-target="#photoModal">
-                            {% endif %}
+                            <!-- Action -->
+                            <td>
+                                {% if req.status != 'Completed' %}
+                                    <a href="{{ url_for('edit_request', request_id=req.id) }}"
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-pencil"></i> Edit
+                                    </a>
+                                {% else %}
+                                    <span class="text-muted">Closed</span>
+                                {% endif %}
+                            </td>
+                        </tr>
                         {% else %}
-                            <span class="text-muted">No Image</span>
-                        {% endif %}
-                    </td>
-
-                    <!-- STATUS -->
-                    <td>
-                        <span class="
-                            {% if req.status == 'Pending' %}status-pending
-                            {% elif req.status == 'In Progress' %}status-in-progress
-                            {% elif req.status == 'Completed' %}status-completed
-                            {% endif %}
-                        ">
-                            {{ req.status }}
-                        </span>
-                    </td>
-                    <td>{{ req.status }}</td>
-
-                    <!-- ACTION -->
-                    <td>
-                        {% if req.status not in ['Completed'] %}
-                            <a href="{{ url_for('edit_request', request_id=req.id) }}"
-                               class="btn btn-sm btn-primary">
-                               <i class="bi bi-pencil"></i>
-                            </a>
-                        {% else %}
-                            <span class="text-muted">—</span>
-                               class="btn btn-sm btn-primary">Edit</a>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="6" class="text-center text-muted py-4">
-                        <i class="bi bi-inbox fs-3"></i><br>
-                        No requests found
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-
-    </div>
+                        <tr>
+                            <td colspan="7" class="text-center py-4 text-muted">
+                                <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+                                No maintenance requests found
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="alert alert-info text-center">
+                <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+                You haven't submitted any maintenance requests yet.
+                <a href="{{ url_for('new_request') }}" class="btn btn-primary btn-sm mt-3">
+                    <i class="bi bi-plus-circle me-1"></i> Submit New Request
+                </a>
+            </div>
+        {% endif %}
+    </main>
 </div>
 
 <!-- Photo Modal -->
