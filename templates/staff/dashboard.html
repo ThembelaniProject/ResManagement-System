@@ -487,15 +487,18 @@
 <!-- NAVBAR -->
 <nav class="navbar navbar-dark bg-primary">
     <div class="container-fluid">
-        <!-- Logo + Mobile toggle -->
-            <a class="navbar-brand d-flex align-items-center" href="#">
-                <!-- Replace with your actual logo path -->
-                <img src="{{ url_for('static', filename='images/Logo-p.png') }}" 
-                     alt="Admin Logo" class="me-2">
-                <!-- Optional text if you want brand name beside logo -->
-                <!-- <span class="fw-bold fs-5 d-none d-md-inline">YourApp</span> -->
-            </a>
+        <!-- Hamburger button for mobile -->
+        <button class="hamburger-btn" id="sidebarToggle" aria-label="Toggle navigation">
+            <i class="bi bi-list"></i>
+        </button>
         
+        <a class="navbar-brand d-flex align-items-center" href="{{ url_for('dashboard') }}">
+            <img src="{{ url_for('static', filename='images/Logo-p.png') }}" 
+                     alt="Admin Logo" class="me-2">
+            <span class="d-none d-sm-inline">Res Maintenance System</span>
+            
+            
+        </a>
         <div class="dropdown">
             <a class="d-flex align-items-center text-decoration-none dropdown-toggle" href="#" data-bs-toggle="dropdown">
                 <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width:40px;height:40px;">
