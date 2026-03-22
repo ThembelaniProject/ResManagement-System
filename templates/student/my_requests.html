@@ -474,13 +474,14 @@
         <button class="hamburger-btn" id="sidebarToggle" aria-label="Toggle navigation">
             <i class="bi bi-list"></i>
         </button>
-         <a class="navbar-brand d-flex align-items-center" href="#">
+         <a class="navbar-brand d-flex align-items-center" href="{{ url_for('dashboard') }}">
                 <!-- Replace with your actual logo path -->
                 <img src="{{ url_for('static', filename='images/Logo-p.png') }}" 
                      alt="Admin Logo" class="me-2">
                 <!-- Optional text if you want brand name beside logo -->
                 <!-- <span class="fw-bold fs-5 d-none d-md-inline">YourApp</span> -->
             </a>
+       
         
         <div class="ms-auto d-flex align-items-center">
             <div class="dropdown">
