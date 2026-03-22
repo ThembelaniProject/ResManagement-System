@@ -485,7 +485,7 @@
 <body class="d-flex flex-column vh-100" data-staff-role="{{ current_user.role }}">
 
 <!-- NAVBAR -->
-<nav class="navbar navbar-dark bg-primary">
+<nav class="navbar navbar-expand navbar-dark bg-primary">
     <div class="container-fluid">
         <!-- Hamburger button for mobile -->
         <button class="hamburger-btn" id="sidebarToggle" aria-label="Toggle navigation">
@@ -499,23 +499,22 @@
             
             
         </a>
-        <div class="dropdown">
-            <a class="d-flex align-items-center text-decoration-none dropdown-toggle" href="#" data-bs-toggle="dropdown">
-                <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width:40px;height:40px;">
-                    <i class="bi bi-person"></i>
-                </div>
-                <div class="d-none d-lg-block ms-2">
-                    <span class="text-white">
-                        {{ current_user.full_name }}
-                    </span>
-                </div>
-            </a>
-            <ul class="dropdown-menu dropdown-menu-end shadow">
-                <li><a class="dropdown-item" href="#"><i class="bi bi-person-circle me-2"></i>Profile</a></li>
-                <li><a class="dropdown-item" href="#"><i class="bi bi-gear me-2"></i>Settings</a></li>
-                <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item text-danger" href="{{ url_for('logout') }}"><i class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
-            </ul>
+        
+        <div class="ms-auto d-flex align-items-center">
+            <div class="dropdown">
+                <a class="d-flex align-items-center text-decoration-none dropdown-toggle text-white touch-target" href="#" data-bs-toggle="dropdown" aria-expanded="false">
+                    <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width:40px;height:40px; background-color: rgba(255,255,255,0.2) !important;">
+                        <i class="bi bi-person"></i>
+                    </div>
+                    <span class="d-none d-lg-block ms-2">{{ current_user.full_name }} ({{ current_user.role|title() }})</span>
+                </a>
+                <ul class="dropdown-menu dropdown-menu-end shadow">
+                    <li><a class="dropdown-item" href="#"><i class="bi bi-person-circle me-2"></i>Profile</a></li>
+                    <li><a class="dropdown-item" href="#"><i class="bi bi-gear me-2"></i>Settings</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item text-danger" href="{{ url_for('logout') }}"><i class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
+                </ul>
+            </div>
         </div>
     </div>
 </nav>
