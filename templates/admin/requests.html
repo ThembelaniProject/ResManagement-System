@@ -271,13 +271,18 @@
     <!-- Topbar -->
     <header class="navbar navbar-expand-lg bg-white shadow-sm sticky-top px-4">
         <div class="container-fluid">
-             <a class="navbar-brand d-flex align-items-center" href="#">
-                <!-- Replace with your actual logo path -->
-                <img src="{{ url_for('static', filename='images/Logo-p.png') }}" 
+             <!-- Hamburger button for mobile -->
+        <button class="hamburger-btn" id="sidebarToggle" aria-label="Toggle navigation">
+            <i class="bi bi-list"></i>
+        </button>
+        
+        <a class="navbar-brand d-flex align-items-center" href="{{ url_for('dashboard') }}">
+            <img src="{{ url_for('static', filename='images/Logo-p.png') }}" 
                      alt="Admin Logo" class="me-2">
-                <!-- Optional text if you want brand name beside logo -->
-                <!-- <span class="fw-bold fs-5 d-none d-md-inline">YourApp</span> -->
-            </a>
+            <span class="d-none d-sm-inline">Res Maintenance System</span>
+            
+            
+        </a>
             <button class="btn btn-outline-secondary d-lg-none me-3" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebar"><i class="bi bi-list fs-4"></i></button>
             <div class="ms-auto d-flex align-items-center gap-3">
                 <div class="form-check form-switch">
