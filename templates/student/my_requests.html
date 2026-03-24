@@ -614,15 +614,24 @@
                                 </div>
                             {% endif %}
                         </td>
-                        <td data-label="Photo">
+                        <!-- FIXED PHOTO DISPLAY -->
+                        <td>
                             {% if req.photo_path %}
-                                <img src="{{ url_for('static', filename=req.photo_path) }}" 
-                                     class="photo-thumbnail" 
-                                     onclick="showPhoto('{{ url_for('static', filename=req.photo_path) }}')" 
-                                     data-bs-toggle="modal" 
-                                     data-bs-target="#photoModal">
+                                {% if req.photo_path.startswith('http') %}
+                                    <!-- ImgBB URL -->
+                                    <img src="{{ req.photo_path }}" 
+                                         class="photo-thumbnail"
+                                         onclick="showPhoto('{{ req.photo_path }}')"
+                                         alt="Request photo">
+                                {% else %}
+                                    <!-- Local file fallback (if any) -->
+                                    <img src="{{ url_for('static', filename=req.photo_path) }}" 
+                                         class="photo-thumbnail"
+                                         onclick="showPhoto('{{ url_for('static', filename=req.photo_path) }}')"
+                                         alt="Request photo">
+                                {% endif %}
                             {% else %}
-                                <span class="text-muted"></span>
+                                <span class="text-muted small">No photo</span>
                             {% endif %}
                         </td>
                         <td data-label="Priority">
