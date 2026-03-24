@@ -594,13 +594,21 @@
                                     <div class="form-text">Be as specific as possible to help us address your issue quickly.</div>
                                 </div>
 
+                                <!-- IMPROVED PHOTO FIELD FOR PHONE -->
                                 <div class="col-12">
                                     <label class="form-label">
                                         <i class="bi bi-camera me-1"></i>Photo (Optional)
                                     </label>
-                                    <input type="file" class="form-control" name="photo" id="photoInput"
-                                           accept="image/png, image/jpeg, image/jpg, image/gif">
-                                    <div class="form-text">Upload a photo of the issue (Max size: 16MB, Allowed: PNG, JPG, JPEG, GIF)</div>
+                                    <input type="file" 
+                                           class="form-control" 
+                                           name="photo" 
+                                           id="photoInput"
+                                           accept="image/*" 
+                                           capture="environment">   <!-- Opens camera directly on phones -->
+                                    <div class="form-text">
+                                        Tap to take a photo with your camera or choose from gallery.<br>
+                                        Maximum size: 16MB (JPG, PNG, HEIC supported)
+                                    </div>
                                     <img id="preview" class="preview-image" src="#" alt="Preview">
                                 </div>
                             </div>

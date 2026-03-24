@@ -17,8 +17,8 @@ from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
 import threading
 import traceback
 import logging
-import requests
-
+import requests as req   # ← Safe alias
+from werkzeug.exceptions import RequestEntityTooLarge  # ← For large photo handling
 
 # ──── DEBUG: Check if requests is the real library ────
 print("DEBUG: requests module loaded from →", requests.__file__)
@@ -68,7 +68,6 @@ if uri and uri.startswith("postgres://"):
 app.config['SQLALCHEMY_DATABASE_URI'] = uri or 'sqlite:///maintenance.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = upload_dir
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB
 # ✅ ADD THIS BLOCK (VERY IMPORTANT)
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     "pool_pre_ping": True,
@@ -79,73 +78,52 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
         "sslmode": "require"
     }
 }
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024   # ImgBB supports up to 32MB
 
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'heic', 'webp'}
 
 
 def upload_to_imgbb(file):
     if not file or not file.filename:
-        app.logger.error("No file received or empty filename")
+        app.logger.warning("No file provided for ImgBB upload")
         return None
 
     api_key = os.environ.get('IMGBB_API_KEY')
     if not api_key:
-        app.logger.error("IMGBB_API_KEY missing from environment variables")
-        return None
-
-    if not hasattr(requests, 'post'):
-        import inspect
-        app.logger.critical("CRITICAL: requests.post is gone!")
-        app.logger.critical(f"  Current type of 'requests': {type(requests).__name__}")
-        app.logger.critical(f"  Current value: {repr(requests)[:200]}...")  # truncate long objects
-        app.logger.critical(f"  Last function that called us: {inspect.currentframe().f_back.f_code.co_name}")
-        # Show call stack (top 4 frames)
-        stack = inspect.stack()[1:5]
-        for frame in stack:
-            app.logger.critical(f"  Called from: {frame.filename}:{frame.lineno} in {frame.function}")
+        app.logger.error("IMGBB_API_KEY is not set in environment variables!")
         return None
 
     url = "https://api.imgbb.com/1/upload"
 
     try:
-        file.seek(0)  # Reset file pointer in case it was already read
+        file.seek(0)  # Reset file pointer
 
-        response = requests.post(
+        response = req.post(
             url,
-            files={"image": (secure_filename(file.filename), file.stream, file.content_type)},
+            files={"image": (secure_filename(file.filename), file.stream, file.content_type or 'image/jpeg')},
             data={"key": api_key},
-            timeout=20
+            timeout=25
         )
 
-        app.logger.info(f"ImgBB HTTP status: {response.status_code}")
-        app.logger.debug(f"ImgBB response preview: {response.text[:500]}...")
+        app.logger.info(f"ImgBB response status: {response.status_code}")
 
         if response.status_code != 200:
-            app.logger.error(f"Non-200 from ImgBB: {response.status_code}")
+            app.logger.error(f"ImgBB failed with status {response.status_code}: {response.text}")
             return None
 
         data = response.json()
 
         if data.get("success"):
             uploaded_url = data["data"]["url"]
-            app.logger.info(f"ImgBB upload successful → {uploaded_url}")
+            app.logger.info(f"✅ ImgBB upload successful: {uploaded_url}")
             return uploaded_url
         else:
-            error_msg = data.get("error", {}).get("message", "Unknown ImgBB error")
-            app.logger.error(f"ImgBB API failed: {error_msg} | full: {data}")
+            error_msg = data.get("error", {}).get("message", "Unknown error")
+            app.logger.error(f"ImgBB API error: {error_msg}")
             return None
 
-    except requests.exceptions.Timeout:
-        app.logger.error("ImgBB upload timed out after 20s")
-        return None
-    except requests.exceptions.RequestException as re:
-        app.logger.error(f"Network/request error during ImgBB upload: {str(re)}")
-        return None
-    except ValueError as ve:
-        app.logger.error(f"ImgBB returned invalid JSON: {str(ve)} | raw: {response.text[:300]}")
-        return None
     except Exception as e:
-        app.logger.error(f"Unexpected error in upload_to_imgbb: {str(e)}", exc_info=True)
+        app.logger.error(f"ImgBB upload exception: {str(e)}", exc_info=True)
         return None
 
 
@@ -950,57 +928,68 @@ def update_status(req_id):
 @app.route('/new_request', methods=['GET', 'POST'])
 @login_required
 def new_request():
-    if current_user.role != "student":
-        flash("Only students can submit requests.", "danger")
-        return redirect(url_for("my_requests"))
-
     if request.method == 'POST':
-        room_number = request.form.get('room_number', current_user.room_number)
-        category = request.form.get('category')
-        priority = request.form.get('priority')
-        description = request.form.get('description')
-        photo_path = None
-
-        # Handle photo upload
-        file = request.files.get('photo')
-        if file and file.filename:
-            if allowed_file(file.filename):
-                photo_url = upload_to_imgbb(file)
-                if photo_url:
-                    photo_path = photo_url  # Store cloud URL only
-                else:
-                    flash("Image upload failed. Try again.", "danger")
-                    return redirect(url_for('new_request'))
-            else:
-                flash("Invalid file type. Only PNG, JPG, JPEG, GIF allowed.", "danger")
-                return redirect(url_for('new_request'))
+        room_number = request.form.get('room_number', '').strip()
+        category    = request.form.get('category')
+        priority    = request.form.get('priority')
+        description = request.form.get('description', '').strip()
 
         if not all([room_number, category, priority, description]):
-            flash("Please fill in all required fields", "danger")
+            flash('Please fill in all required fields.', 'danger')
             return redirect(url_for('new_request'))
 
-        # Create request
+        # ===================== PHOTO UPLOAD TO IMGBB =====================
+        photo_url = None
+        file = request.files.get('photo')
+
+        if file and file.filename:
+            if allowed_file(file.filename) or file.filename.lower().endswith('.heic'):
+                try:
+                    photo_url = upload_to_imgbb(file)
+                    if photo_url:
+                        app.logger.info(f"Photo uploaded to ImgBB: {photo_url}")
+                    else:
+                        flash('Failed to upload photo to server. Please try again.', 'warning')
+                except Exception as e:
+                    app.logger.error(f"Photo upload error: {e}", exc_info=True)
+                    flash('Photo upload failed. Continuing without photo.', 'warning')
+            else:
+                flash('Only image files (JPG, PNG, JPEG, GIF, HEIC) are allowed.', 'danger')
+                return redirect(url_for('new_request'))
+
+        # ===================== CREATE THE REQUEST =====================
         new_req = Request(
             user_id=current_user.id,
-            room_number=room_number.strip(),
+            room_number=room_number,
             category=category,
+            description=description,
             priority=priority,
-            description=description.strip(),
-            photo_path=photo_path
+            status="Pending",
+            photo_path=photo_url   # Now stores the full ImgBB URL
         )
 
         try:
             db.session.add(new_req)
             db.session.commit()
+
+            create_notification(
+                current_user.id,
+                f"Your maintenance request #{new_req.id} has been submitted successfully.",
+                'request', new_req.id
+            )
             notify_admins_new_request(new_req)
-            flash("Maintenance request submitted successfully!", "success")
+
+            flash('✅ Maintenance request submitted successfully!', 'success')
             return redirect(url_for('my_requests'))
+
         except Exception as e:
             db.session.rollback()
-            flash(f"Error saving request: {str(e)}", "danger")
+            app.logger.error(f"Request save failed: {e}", exc_info=True)
+            flash('Error saving request. Please try again.', 'danger')
 
-    return render_template('student/new_request.html', default_room=current_user.room_number)
-
+    # GET request
+    default_room = current_user.room_number or ""
+    return render_template('student/new_request.html', default_room=default_room)
 @app.route('/my-requests')
 @login_required
 def my_requests():
