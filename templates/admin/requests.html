@@ -428,10 +428,24 @@
                                         {% else %}<span class="badge bg-secondary">{{ req.category }}</span>{% endif %}
                                     </td>
                                     <td data-label="Description"><span data-bs-toggle="tooltip" title="{{ req.description }}">{{ req.description | truncate(40, True) }}</span></td>
-                                    <td data-label="Photo">
-                                        {% if req.photo_path %}
-                                        <img src="/static/{{ req.photo_path }}" class="photo-thumbnail" onclick="showPhoto('/static/{{ req.photo_path }}')" data-bs-toggle="modal" data-bs-target="#photoModal">
-                                        {% else %}<span class="text-muted">—</span>{% endif %}
+                                    <td>
+                                    {% if req.photo_path %}
+                                        {% if req.photo_path.startswith('http') %}
+                                            <!-- ImgBB URL -->
+                                            <img src="{{ req.photo_path }}" 
+                                                 class="photo-thumbnail"
+                                                 onclick="showPhoto('{{ req.photo_path }}')"
+                                                 alt="Photo">
+                                        {% else %}
+                                            <!-- Local fallback -->
+                                            <img src="{{ url_for('static', filename=req.photo_path) }}" 
+                                                 class="photo-thumbnail"
+                                                 onclick="showPhoto('{{ url_for('static', filename=req.photo_path) }}')"
+                                                 alt="Photo">
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
                                     </td>
                                     <td data-label="Priority"><span class="badge priority-{{ req.priority|lower }}">{{ req.priority }}</span></td>
                                     <td data-label="Status"><span class="badge badge-{{ req.status|lower|replace(' ', '-') }}">{{ req.status }}</span></td>
