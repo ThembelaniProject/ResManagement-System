@@ -127,6 +127,21 @@ def upload_to_imgbb(file):
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+@app.route('/')
+@app.route('/home')
+def home():
+    current_year = datetime.now().year
+    return render_template('home.html', current_year=current_year)
+@app.route('/contact')
+def contact():
+    contact_info = {
+        'email': 'maintenance@res.durban.ac.za',
+        'emergency_phone': '+27 31 555 1234 (24/7)',
+        'office': 'Residence Admin Block, DUT Campus',
+        'hours': 'Monday–Friday 08:00 – 16:30'
+    }
+    return render_template('contact.html', contact_info=contact_info)
+
 
 
 # Email configuration (use environment variables in production!)
@@ -726,7 +741,7 @@ def notify_user_email(user, subject, html_template, **kwargs):
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-@app.route("/", methods=["GET", "POST"])
+@app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
         email = request.form.get("email")
@@ -742,7 +757,7 @@ def login():
 @login_required
 def logout():
     logout_user()
-    return redirect(url_for("login"))
+    return redirect(url_for("home"))
 
 # ────────────────────────────────────────────────
 # Admin – Register user
