@@ -20,9 +20,7 @@ import logging
 import requests as req   # ← Safe alias
 from werkzeug.exceptions import RequestEntityTooLarge  # ← For large photo handling
 
-# ──── DEBUG: Check if requests is the real library ────
-print("DEBUG: requests module loaded from →", requests.__file__)
-print("DEBUG: Does requests have .post? →", hasattr(requests, 'post'))
+
 # Expected output in logs:
 #   .../site-packages/requests/__init__.py
 #   True
