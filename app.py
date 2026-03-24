@@ -319,7 +319,7 @@ class User(UserMixin, db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False, index=True)
     role = db.Column(db.String(20))
     room_number = db.Column(db.String(20), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.utcnow() + timedelta(hours=2))
     # ─── NEW ──────────── (only meaningful for staff)
     average_rating = db.Column(db.Float, default=0.0, nullable=False)
     rating_count = db.Column(db.Integer, default=0, nullable=False)
@@ -352,8 +352,8 @@ class Request(db.Model):
     rating_comment = db.Column(db.Text, nullable=True)
     rated_at = db.Column(db.DateTime, nullable=True)
     # ───────────────────────────────────────────────
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.utcnow() + timedelta(hours=2))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.utcnow() + timedelta(hours=2))
 
 class Notification(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -363,7 +363,7 @@ class Notification(db.Model):
     related_request_id = db.Column(db.Integer, db.ForeignKey('request.id'), nullable=True)
     related_object_id = db.Column(db.Integer, nullable=True)
     is_read = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.utcnow() + timedelta(hours=2))
 
     user = db.relationship('User', backref=db.backref('notifications', lazy='dynamic', cascade="all, delete-orphan"))
     request = db.relationship('Request', backref='notifications', lazy=True)
@@ -570,7 +570,7 @@ def check_and_create_reminder_notifications():
                 Notification.user_id == student.id,
                 Notification.type == 'reminder',
                 Notification.related_request_id == req.id,
-                Notification.created_at >= datetime.utcnow() - timedelta(hours=24)
+                Notification.created_at >= datetime.utcnow() - timedelta(hours=1)
             ).first()
 
             if recent_reminder: continue
