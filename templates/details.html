@@ -55,22 +55,10 @@
 
             {% if request.photo_path %}
             <div class="mb-3">
-                <span class="detail-label">Attached Photo</span>
-                <div class="photo-container mt-3">
-                    {% if request.photo_path.startswith('http') %}
-                        <!-- ImgBB URL -->
-                        <img src="{{ request.photo_path }}" 
-                             class="img-fluid rounded shadow" 
-                             alt="Request Photo">
-                    {% else %}
-                        <!-- Local file fallback -->
-                        <img src="{{ url_for('static', filename=request.photo_path) }}" 
-                             class="img-fluid rounded shadow" 
-                             alt="Request Photo">
-                    {% endif %}
-                </div>
+                <strong>Photo:</strong><br>
+               <img src="{{ url_for('static', filename=request.photo_path) }}" class="img-fluid rounded shadow mt-2" style="max-width:400px;">
             </div>
-            {% else %}
+            {% endif %}
 
         </div>
 
