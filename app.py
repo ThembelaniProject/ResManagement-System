@@ -692,7 +692,7 @@ def notify_admins_new_request(new_request):
 
         msg = Message(
             subject=f"New Maintenance Request #{new_request.id} — Room {new_request.room_number}",
-            sender=app.config['MAIL_USERNAME'],
+            sender=app.config['MAIL_DEFAULT_SENDER'],
             recipients=admin_emails,
             body=f"New request #{new_request.id} submitted by {student.full_name}",
             html=html_content
