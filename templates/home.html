@@ -111,7 +111,14 @@
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg fixed-top">
         <div class="container">
-            <a class="navbar-brand" href="{{ url_for('home') }}">Res Maintenance</a>
+    
+             <a class="navbar-brand d-flex align-items-center" href="{{ url_for('dashboard') }}">
+            <img src="{{ url_for('static', filename='images/Logo-p.png') }}" 
+                     alt="Admin Logo" class="me-2">
+            <span class="d-none d-sm-inline">Res Maintenance System</span>
+            
+            
+        </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
