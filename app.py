@@ -2,7 +2,6 @@ from flask import Flask, render_template, redirect, url_for, request, flash, jso
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user, UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask_mail import Mail, Message
 from datetime import datetime, timedelta
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SelectField, SubmitField 
@@ -147,12 +146,7 @@ def contact():
 # Email configuration (use environment variables in production!)
 # Email configuration - BREVO (Free - 300 emails/day)
 # ────────────────────────────────────────────────
-app.config['MAIL_SERVER']         = 'smtp-relay.brevo.com'
-app.config['MAIL_PORT']           = 587
-app.config['MAIL_USE_TLS']        = True
-app.config['MAIL_USE_SSL']        = False
-app.config['MAIL_USERNAME']       = os.environ.get('BREVO_SMTP_LOGIN')   # e.g. xxxxxxxx@smtp-brevo.com
-app.config['MAIL_PASSWORD']       = os.environ.get('BREVO_SMTP_KEY')     # Your Brevo SMTP key
+
 app.config['MAIL_DEFAULT_SENDER'] = ('ResHub Maintenance', 'thembelanibuthelezi64@gmail.com')
 
 
@@ -184,13 +178,7 @@ if not os.environ.get("RENDER"):
     atexit.register(lambda: scheduler.shutdown())
 
 
-def send_async_email(app, msg):
-    with app.app_context():
-        try:
-            mail.send(msg)
-            app.logger.info(f"✅ Email sent to {msg.recipients}")
-        except Exception as e:
-            app.logger.error(f"❌ Email failed: {str(e)}", exc_info=True)
+
             
 # ================= BREVO API EMAIL FUNCTION (New - Reliable on Render) =================
 def send_brevo_email(to_email, subject, html_body=None, text_body=None):
@@ -345,23 +333,23 @@ def rate_request(request_id):
             if req.staff_id:
                 staff = User.query.get(req.staff_id)  # already queried earlier, but safe
                 if staff and staff.email:
+                                        # Send rating notification using Brevo API
                     try:
-                        msg = Message(
-                            subject="New Rating Received",
-                            sender=app.config['MAIL_USERNAME'],
-                            recipients=[staff.email]
-                        )
-                        msg.body = (
-                            f"Your work on request #{req.id} was rated {rating}/5 "
-                            f"by the student."
-                        )
+                        rating_text = f"Your work on request #{req.id} was rated {rating}/5 by the student."
                         if comment:
-                            msg.body += f"\nComment: {comment}"
-                        threading.Thread(target=send_async_email, args=(app, msg)).start()
+                            rating_text += f"\nComment: {comment}"
+
+                        success = send_brevo_email(
+                            to_email=staff.email,
+                            subject="New Rating Received",
+                            text_body=rating_text
+                        )
+                        if success:
+                            app.logger.info(f"✅ Rating notification sent to staff {staff.email}")
+                        else:
+                            app.logger.warning(f"Failed to send rating notification to {staff.email}")
                     except Exception as email_err:
                         app.logger.warning(f"Failed to send rating email: {email_err}")
-                        # silent fail - user doesn't need to know
-
             return redirect(url_for("my_requests"))
 
         except Exception as e:
@@ -644,8 +632,7 @@ def get_admin_emails():
 
 def notify_admins_new_request(new_request):
     """
-    Safely notify all admins about a new maintenance request.
-    Handles missing templates, missing photo, and email errors gracefully.
+    Notify all admins about a new maintenance request using Brevo API
     """
     try:
         admin_emails = get_admin_emails()
@@ -676,34 +663,25 @@ def notify_admins_new_request(new_request):
             )
         except Exception as e:
             app.logger.warning(f"Template render failed for request #{new_request.id}: {e}")
-            html_content = f"New request #{new_request.id} submitted by {student.full_name}"
+            html_content = f"New maintenance request #{new_request.id} submitted by {student.full_name} in room {new_request.room_number}"
 
-        msg = Message(
-            subject=f"New Maintenance Request #{new_request.id} — Room {new_request.room_number}",
-            sender=app.config['MAIL_DEFAULT_SENDER'],
-            recipients=admin_emails,
-            body=f"New request #{new_request.id} submitted by {student.full_name}",
-            html=html_content
-        )
+        subject = f"New Maintenance Request #{new_request.id} — Room {new_request.room_number}"
 
-        # Attach photo if exists and valid
-        if new_request.photo_path:
-            full_path = os.path.join(app.root_path, 'static', new_request.photo_path)
-            if os.path.exists(full_path):
-                try:
-                    ext = new_request.photo_path.rsplit('.', 1)[-1].lower()
-                    mime = f"image/{'jpeg' if ext in ('jpg','jpeg') else ext}"
-                    with open(full_path, 'rb') as f:
-                        msg.attach(filename=f"photo.{ext}", content_type=mime, data=f.read())
-                except Exception as e:
-                    app.logger.warning(f"Failed to attach photo for request #{new_request.id}: {e}")
+        # Send to all admins using Brevo API
+        success_count = 0
+        for admin_email in admin_emails:
+            success = send_brevo_email(
+                to_email=admin_email,
+                subject=subject,
+                html_body=html_content
+            )
+            if success:
+                success_count += 1
 
-        # Send email safely
-        try:
-            threading.Thread(target=send_async_email, args=(app, msg)).start()
-            app.logger.info(f"Admin notification sent for request #{new_request.id}")
-        except Exception as e:
-            app.logger.warning(f"Failed to send email for request #{new_request.id}: {e}")
+        if success_count > 0:
+            app.logger.info(f"✅ Admin notifications sent for request #{new_request.id} ({success_count}/{len(admin_emails)})")
+        else:
+            app.logger.warning(f"❌ Failed to send admin notifications for request #{new_request.id}")
 
     except Exception as e:
         app.logger.error(f"Unexpected error in notify_admins_new_request for request #{new_request.id}: {e}")
@@ -718,14 +696,20 @@ def create_notification(user_id, message, notif_type='request', related_request_
     db.session.add(notif)
 
 def notify_user_email(user, subject, html_template, **kwargs):
+    """Send email to a user using Brevo API"""
     try:
         html = render_template(html_template, **kwargs)
-        msg = Message(subject, sender=app.config['MAIL_USERNAME'], recipients=[user.email],
-                      body="Automated update.", html=html)
-        threading.Thread(target=send_async_email, args=(app, msg)).start()
+        success = send_brevo_email(
+            to_email=user.email,
+            subject=subject,
+            html_body=html
+        )
+        if success:
+            app.logger.info(f"✅ Email sent to {user.email} via notify_user_email")
+        else:
+            app.logger.warning(f"Failed to send email to {user.email}")
     except Exception as e:
-        print(f"→ Email failed for {user.email}: {e}")
-
+        app.logger.error(f"Error in notify_user_email for {user.email}: {e}")
 # ────────────────────────────────────────────────
 # Login / Logout
 # ────────────────────────────────────────────────
