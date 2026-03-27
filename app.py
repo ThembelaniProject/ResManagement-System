@@ -665,7 +665,7 @@ def notify_admins_new_request(new_request):
             app.logger.warning(f"Template render failed for request #{new_request.id}: {e}")
             html_content = f"New maintenance request #{new_request.id} submitted by {student.full_name} in room {new_request.room_number}"
 
-        subject = f"New Maintenance Request #{new_request.id} — Room {new_request.room_number}"
+        subject = f"New Maintenance Request — Room {new_request.room_number}"
 
         # Send to all admins using Brevo API
         success_count = 0
