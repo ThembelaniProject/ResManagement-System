@@ -458,7 +458,13 @@
             color: #3498db;
             text-decoration: none;
         }
-
+        /* Desktop */
+@media (min-width: 1024px) {
+    .hamburger-btn{
+        display: none;
+    }
+ 
+}
         /* ========== FLASH MESSAGES ========== */
         .alert {
             border-radius: 10px;
@@ -517,7 +523,7 @@
         <a class="navbar-brand d-flex align-items-center" href="{{ url_for('dashboard') }}">
             <img src="{{ url_for('static', filename='images/Logo-p.png') }}" 
                      alt="Admin Logo" class="me-2">
-            <span class="d-none d-sm-inline">Res Maintenance System</span>
+            <span class="d-none d-sm-inline"></span>
             
             
         </a>
