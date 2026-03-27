@@ -279,7 +279,7 @@
         <a class="navbar-brand d-flex align-items-center" href="{{ url_for('dashboard') }}">
             <img src="{{ url_for('static', filename='images/Logo-p.png') }}" 
                      alt="Admin Logo" class="me-2">
-            <span class="d-none d-sm-inline">Res Maintenance System</span>
+            <span class="d-none d-sm-inline"></span>
             
             
         </a>
@@ -742,6 +742,73 @@
             resizeTimer = setTimeout(function() {
                 applyFilters();
             }, 250);
+        });
+
+            // Sidebar toggle functionality for mobile
+    const sidebar = document.getElementById('sidebar');
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+
+    function openSidebar() {
+        sidebar.classList.add('show');
+        sidebarBackdrop.classList.add('show');
+        document.body.style.overflow = 'hidden'; // Prevent body scrolling
+    }
+
+    function closeSidebar() {
+        sidebar.classList.remove('show');
+        sidebarBackdrop.classList.remove('show');
+        document.body.style.overflow = ''; // Restore body scrolling
+    }
+
+    if (sidebarToggle) {
+        sidebarToggle.addEventListener('click', openSidebar);
+    }
+
+    if (sidebarBackdrop) {
+        sidebarBackdrop.addEventListener('click', closeSidebar);
+    }
+
+    // Close sidebar when clicking a nav link on mobile
+    document.querySelectorAll('#sidebar .nav-link').forEach(link => {
+        link.addEventListener('click', () => {
+            if (window.innerWidth < 992) {
+                closeSidebar();
+            }
+        });
+    });
+
+    // Handle window resize
+    let resizeTimer;
+    window.addEventListener('resize', function() {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(function() {
+            if (window.innerWidth >= 992) {
+                closeSidebar();
+                document.body.style.overflow = '';
+            }
+        }, 250);
+    });
+
+    // Escape key to close sidebar
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && sidebar.classList.contains('show')) {
+            closeSidebar();
+        }
+    });
+
+    // Quick action cards click handler (if using data-url attribute)
+    document.querySelectorAll('.quick-action-card[data-url]').forEach(card => {
+        card.addEventListener('click', () => {
+            window.location.href = card.getAttribute('data-url');
+        });
+    });
+
+    // Initialize tooltips only on non-touch devices
+    if (!('ontouchstart' in window)) {
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
         });
     </script>
 
