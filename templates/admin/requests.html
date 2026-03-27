@@ -799,12 +799,102 @@
         });
     });
 
+    // ==================== SIDEBAR FUNCTIONALITY ====================
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
+        const backdrop = document.getElementById('sidebarBackdrop');
+        const sidebarToggle = document.getElementById('sidebarToggle');   // ← Fixed ID
+        const sidebarClose = document.getElementById('sidebarClose');
+        const collapseBtn = document.getElementById('sidebarCollapse');
+
+        // Open sidebar (Mobile)
+        function openSidebar() {
+            sidebar.classList.add('show');
+            backdrop.classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+
+        // Close sidebar (Mobile)
+        function closeSidebar() {
+            sidebar.classList.remove('show');
+            backdrop.classList.remove('show');
+            document.body.style.overflow = '';
+        }
+
+        // Close on mobile when clicking nav link
+        window.closeSidebarOnMobile = function() {
+            if (window.innerWidth < 992) {
+                closeSidebar();
+            }
+            return true;
+        };
+
+        // Desktop Collapse/Expand
+        if (collapseBtn) {
+            collapseBtn.addEventListener('click', () => {
+                sidebar.classList.toggle('collapsed');
+                mainContent.classList.toggle('collapsed');
+
+                const icon = collapseBtn.querySelector('i');
+                if (sidebar.classList.contains('collapsed')) {
+                    icon.classList.replace('bi-arrow-left-right', 'bi-arrow-right');
+                } else {
+                    icon.classList.replace('bi-arrow-right', 'bi-arrow-left-right');
+                }
+            });
+        }
+
+        // Hamburger Button Click (Now Works!)
+        if (sidebarToggle) {
+            sidebarToggle.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                openSidebar();
+            });
+        }
+
+        // Close button (X) on mobile
+        if (sidebarClose) {
+            sidebarClose.addEventListener('click', closeSidebar);
+        }
+
+        // Click on backdrop to close
+        if (backdrop) {
+            backdrop.addEventListener('click', closeSidebar);
+        }
+
+        // Escape key support
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && sidebar.classList.contains('show')) {
+                closeSidebar();
+            }
+        });
+
+        // Close sidebar automatically on large screens
+        window.addEventListener('resize', () => {
+            if (window.innerWidth >= 992) {
+                closeSidebar();
+                document.body.style.overflow = '';
+            }
+        });
+
+        // Optional: Close sidebar when clicking any nav link on mobile
+        document.querySelectorAll('#sidebar .nav-link').forEach(link => {
+            link.addEventListener('click', () => {
+                if (window.innerWidth < 992) closeSidebar();
+            });
+        });
+    
+
     // Initialize tooltips only on non-touch devices
     if (!('ontouchstart' in window)) {
         var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
         var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
             return new bootstrap.Tooltip(tooltipTriggerEl);
         });
+
+
+    
     </script>
 
 </body>
