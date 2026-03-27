@@ -153,7 +153,8 @@ app.config['MAIL_USE_TLS']        = True
 app.config['MAIL_USE_SSL']        = False
 app.config['MAIL_USERNAME']       = os.environ.get('BREVO_SMTP_LOGIN')   # e.g. xxxxxxxx@smtp-brevo.com
 app.config['MAIL_PASSWORD']       = os.environ.get('BREVO_SMTP_KEY')     # Your Brevo SMTP key
-app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', 'maintenance@res.durban.ac.za')
+app.config['MAIL_DEFAULT_SENDER'] = ('ResHub Maintenance', 'thembelanibuthelezi64@gmail.com')
+
 
 
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or 'mysecretkey123'
