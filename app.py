@@ -161,7 +161,6 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or 'mysecretkey123'
 app.config['SECURITY_PASSWORD_SALT'] = os.environ.get('SECURITY_PASSWORD_SALT') or 'mysalt123'
 
 db   = SQLAlchemy(app)
-mail = Mail(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
@@ -192,6 +191,52 @@ def send_async_email(app, msg):
             app.logger.info(f"✅ Email sent to {msg.recipients}")
         except Exception as e:
             app.logger.error(f"❌ Email failed: {str(e)}", exc_info=True)
+            
+# ================= BREVO API EMAIL FUNCTION (New - Reliable on Render) =================
+def send_brevo_email(to_email, subject, html_body=None, text_body=None):
+    """
+    Send email using Brevo Transactional API (works on Render free tier)
+    """
+    api_key = os.environ.get('BREVO_API_KEY')
+    if not api_key:
+        app.logger.error("❌ BREVO_API_KEY is not set in environment variables!")
+        return False
+
+    url = "https://api.brevo.com/v3/smtp/email"
+
+    payload = {
+        "sender": {
+            "name": "ResHub Maintenance",
+            "email": "thembelanibuthelezi64@gmail.com"
+        },
+        "to": [{"email": to_email}],
+        "subject": subject,
+    }
+
+    if html_body:
+        payload["htmlContent"] = html_body
+    elif text_body:
+        payload["textContent"] = text_body
+    else:
+        payload["textContent"] = "Automated message from ResHub Maintenance System."
+
+    headers = {
+        "accept": "application/json",
+        "api-key": api_key,
+        "content-type": "application/json"
+    }
+
+    try:
+        response = req.post(url, json=payload, headers=headers, timeout=15)
+        if response.status_code in (201, 202):
+            app.logger.info(f"✅ Brevo API: Email sent successfully to {to_email}")
+            return True
+        else:
+            app.logger.error(f"❌ Brevo API failed: {response.status_code} - {response.text}")
+            return False
+    except Exception as e:
+        app.logger.error(f"❌ Brevo API exception: {str(e)}", exc_info=True)
+        return False
 
 # ────────────────────────────────────────────────
 # Notifications context processor
@@ -462,7 +507,7 @@ def verify_reset_token(token, expiration=3600):
         return None
 
 def send_reset_email(to_email, reset_url, user_name):
-    """Send password reset email"""
+    """Send password reset email using Brevo API"""
     subject = "Password Reset Request - Residence Maintenance System"
     
     html_body = f"""
@@ -470,55 +515,16 @@ def send_reset_email(to_email, reset_url, user_name):
     <html>
     <head>
         <style>
-            body {{
-                font-family: Arial, sans-serif;
-                line-height: 1.6;
-                color: #333;
-            }}
-            .container {{
-                max-width: 600px;
-                margin: 0 auto;
-                padding: 20px;
-                border: 1px solid #ddd;
-                border-radius: 5px;
-            }}
-            .header {{
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white;
-                padding: 20px;
-                text-align: center;
-                border-radius: 5px 5px 0 0;
-            }}
-            .content {{
-                padding: 20px;
-            }}
-            .button {{
-                display: inline-block;
-                padding: 12px 30px;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white;
-                text-decoration: none;
-                border-radius: 5px;
-                margin: 20px 0;
-                font-weight: bold;
-            }}
-            .button:hover {{
-                background: linear-gradient(135deg, #5a6fd6 0%, #6a43a0 100%);
-            }}
-            .footer {{
-                text-align: center;
-                padding: 20px;
-                color: #777;
-                font-size: 12px;
-                border-top: 1px solid #ddd;
-            }}
+            body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+            .container {{ max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; }}
+            .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }}
+            .content {{ padding: 20px; }}
+            .button {{ display: inline-block; padding: 12px 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: bold; }}
         </style>
     </head>
     <body>
         <div class="container">
-            <div class="header">
-                <h2>Password Reset Request</h2>
-            </div>
+            <div class="header"><h2>Password Reset Request</h2></div>
             <div class="content">
                 <p>Dear {user_name},</p>
                 <p>We received a request to reset your password for the Residence Maintenance System.</p>
@@ -526,14 +532,10 @@ def send_reset_email(to_email, reset_url, user_name):
                 <div style="text-align: center;">
                     <a href="{reset_url}" class="button" style="color: white;">Reset Password</a>
                 </div>
-                <p>If the button doesn't work, copy and paste this link into your browser:</p>
-                <p style="word-break: break-all; color: #667eea; background: #f0f0f0; padding: 10px; border-radius: 5px;">{reset_url}</p>
+                <p>If the button doesn't work, copy and paste this link:</p>
+                <p style="word-break: break-all; color: #667eea;">{reset_url}</p>
                 <p><strong>This link is valid for 1 hour.</strong></p>
                 <p>If you didn't request a password reset, please ignore this email.</p>
-            </div>
-            <div class="footer">
-                <p>This is an automated message, please do not reply.</p>
-                <p>&copy; 2024 Residence Maintenance System</p>
             </div>
         </div>
     </body>
@@ -543,36 +545,21 @@ def send_reset_email(to_email, reset_url, user_name):
     text_body = f"""
 Dear {user_name},
 
-We received a request to reset your password for the Residence Maintenance System.
+We received a request to reset your password.
 
-Click the link below to reset your password:
-{reset_url}
+Click here: {reset_url}
 
 This link is valid for 1 hour.
 
-If you didn't request a password reset, please ignore this email.
-
-This is an automated message, please do not reply.
+If you didn't request this, please ignore this email.
     """
-    
-    msg = Message(
-        subject=subject,
-        sender=app.config['MAIL_USERNAME'],
-        recipients=[to_email],
-        body=text_body,
-        html=html_body
-    )
-    
-    try:
-        print(f"📧 Sending reset email to {to_email}")
-        print(f"📧 Reset URL: {reset_url}")
-        threading.Thread(target=send_async_email, args=(app, msg)).start()
-        print(f"✅ Email sent successfully to {to_email}")
+
+    success = send_brevo_email(to_email, subject, html_body, text_body)
+    if success:
+        app.logger.info(f"✅ Reset email sent to {to_email}")
         return True
-    except Exception as e:
-        print(f"❌ Failed to send email: {str(e)}")
-        import traceback
-        traceback.print_exc()
+    else:
+        app.logger.error(f"❌ Failed to send reset email to {to_email}")
         return False
 # ================= NOTIFICATION FUNCTIONS =================
 def check_and_create_reminder_notifications():
