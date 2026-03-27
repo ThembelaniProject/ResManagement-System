@@ -666,6 +666,14 @@
         var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
             return new bootstrap.Tooltip(tooltipTriggerEl);
         });
+
+    if (sidebarToggle) {
+    sidebarToggle.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openSidebar();
+    });
+}
     </script>
 </body>
 </html>
